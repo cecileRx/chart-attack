@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { getAuth } from "@clerk/express";
+import { db, analysesTable } from "@workspace/db";
+import { randomBytes } from "crypto";
 
 const router = Router();
 
@@ -86,7 +89,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  let plan: unknown;
+  let plan: Record<string, unknown>;
   try {
     const cleaned = content
       .replace(/^```json\s*/i, "")
@@ -98,6 +101,53 @@ router.post("/", async (req, res) => {
     req.log.error({ content }, "Failed to parse AI response as JSON");
     res.status(500).json({ error: "AI returned an unexpected response format. Please try again." });
     return;
+  }
+
+  // If user is authenticated, persist the analysis
+  const auth = getAuth(req);
+  const userId = auth?.userId;
+
+  if (userId) {
+    try {
+      const risk = Math.abs((plan.entry as number) - (plan.sl as number));
+      const isBuy = plan.direction === "BUY";
+      const entry = plan.entry as number;
+      const sl = plan.sl as number;
+      const rrTp1 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk : entry - risk) - entry) / risk).toFixed(2)) : 0;
+      const rrTp2 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk * 2 : entry - risk * 2) - entry) / risk).toFixed(2)) : 0;
+      const rrTp3 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk * 3 : entry - risk * 3) - entry) / risk).toFixed(2)) : 0;
+
+      const id = randomBytes(8).toString("hex");
+      await db.insert(analysesTable).values({
+        id,
+        userId,
+        context: (plan.context as string) || "",
+        timeframe: (plan.timeframe as string) || "",
+        direction: plan.direction as string,
+        entry: entry,
+        sl: sl,
+        tp1: plan.tp1 as number,
+        tp2: plan.tp2 as number,
+        tp3: plan.tp3 as number,
+        rrRatio: rrTp3,
+        rrTp1,
+        rrTp2,
+        rrTp3,
+        confidence: plan.confidence as string,
+        confidenceScore: plan.confidenceScore as number,
+        explanation: (plan.explanation as string) || "",
+        setupQuality: (plan.setupQuality as string) || "",
+        keyLevels: (plan.keyLevels as string) || "",
+        priceMin: plan.priceMin as number,
+        priceMax: plan.priceMax as number,
+        imageDataUrl,
+      });
+
+      plan = { ...plan, id };
+    } catch (err) {
+      req.log.error({ err }, "Failed to save analysis to database");
+      // Non-fatal: still return the plan even if save fails
+    }
   }
 
   res.json(plan);

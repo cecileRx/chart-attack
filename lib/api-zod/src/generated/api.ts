@@ -27,6 +27,12 @@ export const analyzeChartImageResponseConfidenceScoreMin = 0;
 export const analyzeChartImageResponseConfidenceScoreMax = 100;
 
 export const AnalyzeChartImageResponse = zod.object({
+  id: zod
+    .string()
+    .optional()
+    .describe(
+      "Database ID of the saved analysis (only present when user is signed in)",
+    ),
   context: zod
     .string()
     .describe("Asset\/instrument name (e.g. EUR\/USD, BTC\/USD, Apple Inc.)"),
@@ -49,4 +55,45 @@ export const AnalyzeChartImageResponse = zod.object({
   explanation: zod.string(),
   setupQuality: zod.string(),
   keyLevels: zod.string(),
+});
+
+/**
+ * Returns all saved chart analyses for the authenticated user
+ * @summary Get current user's analysis history
+ */
+export const GetUserHistoryResponseItem = zod.object({
+  id: zod.string(),
+  context: zod.string(),
+  timeframe: zod.string(),
+  direction: zod.enum(["BUY", "SELL"]),
+  entry: zod.number(),
+  sl: zod.number(),
+  tp1: zod.number(),
+  tp2: zod.number(),
+  tp3: zod.number(),
+  rrRatio: zod.number(),
+  rrTp1: zod.number(),
+  rrTp2: zod.number(),
+  rrTp3: zod.number(),
+  confidence: zod.string(),
+  confidenceScore: zod.number(),
+  explanation: zod.string(),
+  setupQuality: zod.string(),
+  keyLevels: zod.string(),
+  priceMin: zod.number(),
+  priceMax: zod.number(),
+  imageDataUrl: zod.string(),
+  createdAt: zod.coerce.date(),
+});
+export const GetUserHistoryResponse = zod.array(GetUserHistoryResponseItem);
+
+/**
+ * @summary Delete a history entry
+ */
+export const DeleteHistoryEntryParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeleteHistoryEntryResponse = zod.object({
+  success: zod.boolean(),
 });

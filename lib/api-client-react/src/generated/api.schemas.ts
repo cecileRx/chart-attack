@@ -32,6 +32,8 @@ export const ChartAnalysisResultConfidence = {
 } as const;
 
 export interface ChartAnalysisResult {
+  /** Database ID of the saved analysis (only present when user is signed in) */
+  id?: string;
   /** Asset/instrument name (e.g. EUR/USD, BTC/USD, Apple Inc.) */
   context: string;
   /** Chart timeframe if visible (e.g. 1H, 4H, Daily) */
@@ -57,6 +59,43 @@ export interface ChartAnalysisResult {
   keyLevels: string;
 }
 
+export type HistoryEntryDirection =
+  (typeof HistoryEntryDirection)[keyof typeof HistoryEntryDirection];
+
+export const HistoryEntryDirection = {
+  BUY: "BUY",
+  SELL: "SELL",
+} as const;
+
+export interface HistoryEntry {
+  id: string;
+  context: string;
+  timeframe: string;
+  direction: HistoryEntryDirection;
+  entry: number;
+  sl: number;
+  tp1: number;
+  tp2: number;
+  tp3: number;
+  rrRatio: number;
+  rrTp1: number;
+  rrTp2: number;
+  rrTp3: number;
+  confidence: string;
+  confidenceScore: number;
+  explanation: string;
+  setupQuality: string;
+  keyLevels: string;
+  priceMin: number;
+  priceMax: number;
+  imageDataUrl: string;
+  createdAt: string;
+}
+
 export interface AnalysisError {
   error: string;
 }
+
+export type DeleteHistoryEntry200 = {
+  success: boolean;
+};

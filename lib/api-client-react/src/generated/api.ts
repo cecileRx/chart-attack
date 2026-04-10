@@ -20,7 +20,9 @@ import type {
   AnalysisError,
   AnalyzeChartRequest,
   ChartAnalysisResult,
+  DeleteHistoryEntry200,
   HealthStatus,
+  HistoryEntry,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -193,4 +195,164 @@ export const useAnalyzeChartImage = <
   TContext
 > => {
   return useMutation(getAnalyzeChartImageMutationOptions(options));
+};
+
+/**
+ * Returns all saved chart analyses for the authenticated user
+ * @summary Get current user's analysis history
+ */
+export const getGetUserHistoryUrl = () => {
+  return `/api/history`;
+};
+
+export const getUserHistory = async (
+  options?: RequestInit,
+): Promise<HistoryEntry[]> => {
+  return customFetch<HistoryEntry[]>(getGetUserHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUserHistoryQueryKey = () => {
+  return [`/api/history`] as const;
+};
+
+export const getGetUserHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUserHistory>>,
+  TError = ErrorType<AnalysisError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getUserHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUserHistoryQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getUserHistory>>> = ({
+    signal,
+  }) => getUserHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUserHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUserHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUserHistory>>
+>;
+export type GetUserHistoryQueryError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Get current user's analysis history
+ */
+
+export function useGetUserHistory<
+  TData = Awaited<ReturnType<typeof getUserHistory>>,
+  TError = ErrorType<AnalysisError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getUserHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUserHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Delete a history entry
+ */
+export const getDeleteHistoryEntryUrl = (id: string) => {
+  return `/api/history/${id}`;
+};
+
+export const deleteHistoryEntry = async (
+  id: string,
+  options?: RequestInit,
+): Promise<DeleteHistoryEntry200> => {
+  return customFetch<DeleteHistoryEntry200>(getDeleteHistoryEntryUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteHistoryEntryMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteHistoryEntry>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteHistoryEntry>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteHistoryEntry"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteHistoryEntry>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteHistoryEntry(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteHistoryEntryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteHistoryEntry>>
+>;
+
+export type DeleteHistoryEntryMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Delete a history entry
+ */
+export const useDeleteHistoryEntry = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteHistoryEntry>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteHistoryEntry>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteHistoryEntryMutationOptions(options));
 };

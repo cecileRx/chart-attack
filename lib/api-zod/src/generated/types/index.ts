@@ -11,4 +11,7 @@ export * from "./analyzeChartRequest";
 export * from "./chartAnalysisResult";
 export * from "./chartAnalysisResultConfidence";
 export * from "./chartAnalysisResultDirection";
+export * from "./deleteHistoryEntry200";
 export * from "./healthStatus";
+export * from "./historyEntry";
+export * from "./historyEntryDirection";

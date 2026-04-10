@@ -9,6 +9,8 @@ import type { ChartAnalysisResultConfidence } from "./chartAnalysisResultConfide
 import type { ChartAnalysisResultDirection } from "./chartAnalysisResultDirection";
 
 export interface ChartAnalysisResult {
+  /** Database ID of the saved analysis (only present when user is signed in) */
+  id?: string;
   /** Asset/instrument name (e.g. EUR/USD, BTC/USD, Apple Inc.) */
   context: string;
   /** Chart timeframe if visible (e.g. 1H, 4H, Daily) */

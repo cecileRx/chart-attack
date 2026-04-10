@@ -6,7 +6,6 @@ import { ManualLevelsPanel } from '../components/ManualLevelsPanel';
 import { Button } from '@/components/ui/button';
 import { Upload, Loader2, Lightbulb, AlertCircle } from 'lucide-react';
 import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
-import { addToHistory } from '@/lib/sessionHistory';
 import { useAnalyzeChartImage } from '@workspace/api-client-react';
 
 const TIPS = [
@@ -43,7 +42,6 @@ export default function Analyze() {
         const imageDataUrl = variables.data.imageDataUrl;
         const plan = buildPlanFromAIResponse(imageDataUrl, result as Parameters<typeof buildPlanFromAIResponse>[1]);
         setCurrentPlan(plan);
-        addToHistory(plan);
         setIsAnalyzing(false);
         setApiError(null);
         setTipIndex(prev => (prev + 1) % TIPS.length);

@@ -12,6 +12,8 @@ tags:
     description: Health operations
   - name: analysis
     description: Chart analysis operations
+  - name: history
+    description: User analysis history
 paths:
   /healthz:
     get:
@@ -57,6 +59,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalysisError"
+  /history:
+    get:
+      operationId: getUserHistory
+      tags: [history]
+      summary: Get current user's analysis history
+      description: Returns all saved chart analyses for the authenticated user
+      responses:
+        "200":
+          description: List of user analyses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryEntry"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+  /history/{id}:
+    delete:
+      operationId: deleteHistoryEntry
+      tags: [history]
+      summary: Delete a history entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required:
+                  - success
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
 components:
   schemas:
     HealthStatus:
@@ -77,6 +135,9 @@ components:
     ChartAnalysisResult:
       type: object
       properties:
+        id:
+          type: string
+          description: Database ID of the saved analysis (only present when user is signed in)
         context:
           type: string
           description: Asset/instrument name (e.g. EUR/USD, BTC/USD, Apple Inc.)
@@ -131,6 +192,78 @@ components:
         - explanation
         - setupQuality
         - keyLevels
+    HistoryEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        context:
+          type: string
+        timeframe:
+          type: string
+        direction:
+          type: string
+          enum: [BUY, SELL]
+        entry:
+          type: number
+        sl:
+          type: number
+        tp1:
+          type: number
+        tp2:
+          type: number
+        tp3:
+          type: number
+        rrRatio:
+          type: number
+        rrTp1:
+          type: number
+        rrTp2:
+          type: number
+        rrTp3:
+          type: number
+        confidence:
+          type: string
+        confidenceScore:
+          type: number
+        explanation:
+          type: string
+        setupQuality:
+          type: string
+        keyLevels:
+          type: string
+        priceMin:
+          type: number
+        priceMax:
+          type: number
+        imageDataUrl:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - context
+        - timeframe
+        - direction
+        - entry
+        - sl
+        - tp1
+        - tp2
+        - tp3
+        - rrRatio
+        - rrTp1
+        - rrTp2
+        - rrTp3
+        - confidence
+        - confidenceScore
+        - explanation
+        - setupQuality
+        - keyLevels
+        - priceMin
+        - priceMax
+        - imageDataUrl
+        - createdAt
     AnalysisError:
       type: object
       properties:
