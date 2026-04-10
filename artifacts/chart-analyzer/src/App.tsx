@@ -38,18 +38,7 @@ function SignInPage() {
         routing="path"
         path={`${basePath}/sign-in`}
         signUpUrl={`${basePath}/sign-up`}
-        appearance={{
-          elements: {
-            card: "shadow-xl",
-          },
-        }}
-        localization={{
-          signIn: {
-            start: {
-              title: "Sign in to ChartSense",
-            },
-          },
-        }}
+        appearance={{ elements: { card: "shadow-xl" } }}
       />
     </div>
   );
@@ -64,18 +53,7 @@ function SignUpPage() {
         routing="path"
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
-        appearance={{
-          elements: {
-            card: "shadow-xl",
-          },
-        }}
-        localization={{
-          signUp: {
-            start: {
-              title: "Sign up for ChartSense",
-            },
-          },
-        }}
+        appearance={{ elements: { card: "shadow-xl" } }}
       />
     </div>
   );
@@ -127,6 +105,20 @@ function ClerkProviderWithRoutes() {
       proxyUrl={clerkProxyUrl}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
+      localization={{
+        signIn: {
+          start: {
+            title: "Sign in to ChartSense",
+            subtitle: "Welcome back! Please sign in to continue.",
+          },
+        },
+        signUp: {
+          start: {
+            title: "Sign up for ChartSense",
+            subtitle: "Create your free account to get started.",
+          },
+        },
+      }}
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
