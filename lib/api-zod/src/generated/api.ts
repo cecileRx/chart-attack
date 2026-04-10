@@ -14,3 +14,39 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Sends a chart image to the AI vision model and returns a structured trade plan
+ * @summary Analyze a chart image using AI
+ */
+export const AnalyzeChartImageBody = zod.object({
+  imageDataUrl: zod.string().describe("Base64 data URL of the chart image"),
+});
+
+export const analyzeChartImageResponseConfidenceScoreMin = 0;
+export const analyzeChartImageResponseConfidenceScoreMax = 100;
+
+export const AnalyzeChartImageResponse = zod.object({
+  context: zod
+    .string()
+    .describe("Asset\/instrument name (e.g. EUR\/USD, BTC\/USD, Apple Inc.)"),
+  timeframe: zod
+    .string()
+    .describe("Chart timeframe if visible (e.g. 1H, 4H, Daily)"),
+  priceMin: zod.number().describe("Lowest price visible on the right axis"),
+  priceMax: zod.number().describe("Highest price visible on the right axis"),
+  direction: zod.enum(["BUY", "SELL"]),
+  entry: zod.number(),
+  sl: zod.number(),
+  tp1: zod.number(),
+  tp2: zod.number(),
+  tp3: zod.number(),
+  confidence: zod.enum(["LOW", "MEDIUM", "GOOD"]),
+  confidenceScore: zod
+    .number()
+    .min(analyzeChartImageResponseConfidenceScoreMin)
+    .max(analyzeChartImageResponseConfidenceScoreMax),
+  explanation: zod.string(),
+  setupQuality: zod.string(),
+  keyLevels: zod.string(),
+});

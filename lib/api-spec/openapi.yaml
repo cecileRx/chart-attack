@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: analysis
+    description: Chart analysis operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /analyze-chart:
+    post:
+      operationId: analyzeChartImage
+      tags: [analysis]
+      summary: Analyze a chart image using AI
+      description: Sends a chart image to the AI vision model and returns a structured trade plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnalyzeChartRequest"
+      responses:
+        "200":
+          description: AI-generated trade plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartAnalysisResult"
+        "400":
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "500":
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +66,75 @@ components:
           type: string
       required:
         - status
-
+    AnalyzeChartRequest:
+      type: object
+      properties:
+        imageDataUrl:
+          type: string
+          description: Base64 data URL of the chart image
+      required:
+        - imageDataUrl
+    ChartAnalysisResult:
+      type: object
+      properties:
+        context:
+          type: string
+          description: Asset/instrument name (e.g. EUR/USD, BTC/USD, Apple Inc.)
+        timeframe:
+          type: string
+          description: Chart timeframe if visible (e.g. 1H, 4H, Daily)
+        priceMin:
+          type: number
+          description: Lowest price visible on the right axis
+        priceMax:
+          type: number
+          description: Highest price visible on the right axis
+        direction:
+          type: string
+          enum: [BUY, SELL]
+        entry:
+          type: number
+        sl:
+          type: number
+        tp1:
+          type: number
+        tp2:
+          type: number
+        tp3:
+          type: number
+        confidence:
+          type: string
+          enum: [LOW, MEDIUM, GOOD]
+        confidenceScore:
+          type: number
+          minimum: 0
+          maximum: 100
+        explanation:
+          type: string
+        setupQuality:
+          type: string
+        keyLevels:
+          type: string
+      required:
+        - context
+        - timeframe
+        - priceMin
+        - priceMax
+        - direction
+        - entry
+        - sl
+        - tp1
+        - tp2
+        - tp3
+        - confidence
+        - confidenceScore
+        - explanation
+        - setupQuality
+        - keyLevels
+    AnalysisError:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

@@ -6,4 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./analysisError";
+export * from "./analyzeChartRequest";
+export * from "./chartAnalysisResult";
+export * from "./chartAnalysisResultConfidence";
+export * from "./chartAnalysisResultDirection";
 export * from "./healthStatus";

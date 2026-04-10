@@ -5,18 +5,26 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  AnalysisError,
+  AnalyzeChartRequest,
+  ChartAnalysisResult,
+  HealthStatus,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +107,90 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * Sends a chart image to the AI vision model and returns a structured trade plan
+ * @summary Analyze a chart image using AI
+ */
+export const getAnalyzeChartImageUrl = () => {
+  return `/api/analyze-chart`;
+};
+
+export const analyzeChartImage = async (
+  analyzeChartRequest: AnalyzeChartRequest,
+  options?: RequestInit,
+): Promise<ChartAnalysisResult> => {
+  return customFetch<ChartAnalysisResult>(getAnalyzeChartImageUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(analyzeChartRequest),
+  });
+};
+
+export const getAnalyzeChartImageMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeChartImage>>,
+    TError,
+    { data: BodyType<AnalyzeChartRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof analyzeChartImage>>,
+  TError,
+  { data: BodyType<AnalyzeChartRequest> },
+  TContext
+> => {
+  const mutationKey = ["analyzeChartImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof analyzeChartImage>>,
+    { data: BodyType<AnalyzeChartRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return analyzeChartImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AnalyzeChartImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof analyzeChartImage>>
+>;
+export type AnalyzeChartImageMutationBody = BodyType<AnalyzeChartRequest>;
+export type AnalyzeChartImageMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Analyze a chart image using AI
+ */
+export const useAnalyzeChartImage = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof analyzeChartImage>>,
+    TError,
+    { data: BodyType<AnalyzeChartRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof analyzeChartImage>>,
+  TError,
+  { data: BodyType<AnalyzeChartRequest> },
+  TContext
+> => {
+  return useMutation(getAnalyzeChartImageMutationOptions(options));
+};

@@ -5,31 +5,8 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface AnalyzeChartRequest {
-  /** Base64 data URL of the chart image */
-  imageDataUrl: string;
-}
-
-export type ChartAnalysisResultDirection =
-  (typeof ChartAnalysisResultDirection)[keyof typeof ChartAnalysisResultDirection];
-
-export const ChartAnalysisResultDirection = {
-  BUY: "BUY",
-  SELL: "SELL",
-} as const;
-
-export type ChartAnalysisResultConfidence =
-  (typeof ChartAnalysisResultConfidence)[keyof typeof ChartAnalysisResultConfidence];
-
-export const ChartAnalysisResultConfidence = {
-  LOW: "LOW",
-  MEDIUM: "MEDIUM",
-  GOOD: "GOOD",
-} as const;
+import type { ChartAnalysisResultConfidence } from "./chartAnalysisResultConfidence";
+import type { ChartAnalysisResultDirection } from "./chartAnalysisResultDirection";
 
 export interface ChartAnalysisResult {
   /** Asset/instrument name (e.g. EUR/USD, BTC/USD, Apple Inc.) */
@@ -55,8 +32,4 @@ export interface ChartAnalysisResult {
   explanation: string;
   setupQuality: string;
   keyLevels: string;
-}
-
-export interface AnalysisError {
-  error: string;
 }

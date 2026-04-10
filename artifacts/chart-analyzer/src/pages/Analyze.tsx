@@ -4,11 +4,10 @@ import { ChartCanvas } from '../components/ChartCanvas';
 import { ResultsPanel } from '../components/ResultsPanel';
 import { ManualLevelsPanel } from '../components/ManualLevelsPanel';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Upload, Loader2, Lightbulb, ChevronRight, AlertCircle } from 'lucide-react';
-import { analyzeChart } from '@/lib/analyzeChart';
+import { Upload, Loader2, Lightbulb, AlertCircle } from 'lucide-react';
+import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
 import { addToHistory } from '@/lib/sessionHistory';
+import { useAnalyzeChartImage } from '@workspace/api-client-react';
 
 const TIPS = [
   "Never risk more than 1-2% of your capital on a single trade.",
@@ -20,31 +19,51 @@ const TIPS = [
 ];
 
 const LOADING_STEPS = [
-  "Detecting key price levels...",
-  "Calculating risk zones...",
+  "Reading price axis...",
+  "Identifying key levels...",
   "Generating trade plan...",
 ];
 
 export default function Analyze() {
-  const { currentImage, setCurrentImage, currentPlan, setCurrentPlan, isAnalyzing, setIsAnalyzing, analysisMode } = useApp();
+  const {
+    currentImage, setCurrentImage,
+    currentPlan, setCurrentPlan,
+    isAnalyzing, setIsAnalyzing,
+    analysisMode,
+  } = useApp();
+
   const [dragActive, setDragActive] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  // Price range state — user fills these from the chart's right axis
-  const [priceMin, setPriceMin] = useState('');
-  const [priceMax, setPriceMax] = useState('');
-  const [rangeError, setRangeError] = useState('');
+  const analyzeChartMutation = useAnalyzeChartImage({
+    mutation: {
+      onSuccess: (result, variables) => {
+        const imageDataUrl = variables.data.imageDataUrl;
+        const plan = buildPlanFromAIResponse(imageDataUrl, result as Parameters<typeof buildPlanFromAIResponse>[1]);
+        setCurrentPlan(plan);
+        addToHistory(plan);
+        setIsAnalyzing(false);
+        setApiError(null);
+        setTipIndex(prev => (prev + 1) % TIPS.length);
+      },
+      onError: (error: unknown) => {
+        setIsAnalyzing(false);
+        const msg = (error as { message?: string })?.message ?? 'Analysis failed. Please try again.';
+        setApiError(msg);
+      },
+    },
+  });
 
   const handleImage = (file: File) => {
     if (!file.type.startsWith('image/')) return;
     const reader = new FileReader();
     reader.onload = (e) => {
-      setCurrentImage(e.target?.result as string);
+      const dataUrl = e.target?.result as string;
+      setCurrentImage(dataUrl);
       setCurrentPlan(null);
-      setPriceMin('');
-      setPriceMax('');
-      setRangeError('');
+      setApiError(null);
     };
     reader.readAsDataURL(file);
   };
@@ -63,55 +82,32 @@ export default function Analyze() {
     }
   };
 
-  const validateRange = (): { min: number; max: number } | null => {
-    const min = parseFloat(priceMin);
-    const max = parseFloat(priceMax);
-
-    if (isNaN(min) || isNaN(max)) {
-      setRangeError('Please enter both the lowest and highest price visible on your chart.');
-      return null;
-    }
-    if (min <= 0 || max <= 0) {
-      setRangeError('Prices must be positive numbers.');
-      return null;
-    }
-    if (min >= max) {
-      setRangeError('The lowest price must be smaller than the highest price.');
-      return null;
-    }
-    if ((max - min) / max > 0.95) {
-      setRangeError('The price range seems too large. Please check the values from the chart axis.');
-      return null;
-    }
-    setRangeError('');
-    return { min, max };
-  };
-
   const runAnalysis = () => {
-    const range = validateRange();
-    if (!currentImage || !range) return;
+    if (!currentImage || isAnalyzing) return;
 
     setIsAnalyzing(true);
     setCurrentPlan(null);
+    setApiError(null);
     setLoadingStep(0);
 
-    let currentStep = 0;
+    // Animate loading steps while the API call runs
+    let step = 0;
     const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep < LOADING_STEPS.length) {
-        setLoadingStep(currentStep);
+      step++;
+      if (step < LOADING_STEPS.length) {
+        setLoadingStep(step);
       } else {
         clearInterval(interval);
-        const plan = analyzeChart(currentImage, range.min, range.max);
-        setCurrentPlan(plan);
-        addToHistory(plan);
-        setIsAnalyzing(false);
-        setTipIndex(prev => (prev + 1) % TIPS.length);
       }
-    }, 800);
-  };
+    }, 900);
 
-  const canAnalyze = currentImage && priceMin && priceMax && !isAnalyzing;
+    analyzeChartMutation.mutate(
+      { data: { imageDataUrl: currentImage } },
+      {
+        onSettled: () => clearInterval(interval),
+      },
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full gap-6">
@@ -137,12 +133,12 @@ export default function Analyze() {
             Drag and drop a TradingView, MT4, MT5, or similar screenshot here, or click to browse files.
           </p>
           <Button
-            asChild
             size="lg"
             className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer px-8"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); document.getElementById('file-upload')?.click(); }}
+            data-testid="button-select-file"
           >
-            <label htmlFor="file-upload" className="cursor-pointer">Select File</label>
+            Select File
           </Button>
           <input
             id="file-upload"
@@ -163,96 +159,71 @@ export default function Analyze() {
             <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 md:p-5 shadow-sm flex-1 flex flex-col">
               <div className="flex items-center justify-between mb-4 px-1">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Analysis Workspace</h2>
-                <label
-                  htmlFor="file-upload-replace"
-                  className="text-xs text-blue-500 hover:text-blue-400 cursor-pointer underline underline-offset-2"
-                >
-                  Replace chart
-                  <input
-                    id="file-upload-replace"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileInput}
-                  />
-                </label>
+                <div className="flex items-center gap-3">
+                  {!currentPlan && !isAnalyzing && (
+                    <Button
+                      onClick={runAnalysis}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      data-testid="button-analyze"
+                    >
+                      Analyze Chart
+                    </Button>
+                  )}
+                  <label
+                    htmlFor="file-upload-replace"
+                    className="text-xs text-blue-500 hover:text-blue-400 cursor-pointer underline underline-offset-2"
+                  >
+                    Replace chart
+                    <input
+                      id="file-upload-replace"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileInput}
+                    />
+                  </label>
+                </div>
               </div>
 
               {isAnalyzing ? (
-                <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800/50 rounded-xl min-h-[400px]">
-                  <Loader2 className="w-12 h-12 animate-spin text-blue-500 mb-6" />
-                  <h3 className="text-xl font-medium text-slate-900 dark:text-white mb-2">Analyzing Chart...</h3>
-                  <p className="text-slate-500 dark:text-slate-400">{LOADING_STEPS[loadingStep]}</p>
+                <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800/50 rounded-xl min-h-[400px] gap-6">
+                  <div className="relative">
+                    <Loader2 className="w-12 h-12 animate-spin text-blue-500" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">AI Analysis in Progress</h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">{LOADING_STEPS[loadingStep]}</p>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {LOADING_STEPS.map((_, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          i <= loadingStep ? 'w-6 bg-blue-500' : 'w-2 bg-slate-300 dark:bg-slate-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <ChartCanvas />
               )}
             </div>
 
-            {/* ── Price range input (shown when no plan yet) ── */}
-            {!currentPlan && !isAnalyzing && (
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
-                    <ChevronRight className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-slate-900 dark:text-white text-sm">
-                      Enter the price range visible on your chart
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      Look at the numbers on the right axis of your screenshot and enter the lowest and highest price shown.
-                    </p>
-                  </div>
+            {/* Error banner */}
+            {apiError && !isAnalyzing && (
+              <div className="flex items-start gap-3 p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-900/40 rounded-xl">
+                <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-rose-700 dark:text-rose-300">{apiError}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="price-min" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Lowest price (bottom of axis)
-                    </Label>
-                    <Input
-                      id="price-min"
-                      type="number"
-                      step="any"
-                      placeholder="e.g. 1.08200"
-                      value={priceMin}
-                      onChange={(e) => { setPriceMin(e.target.value); setRangeError(''); }}
-                      className="font-mono text-sm"
-                      data-testid="input-price-min"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="price-max" className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
-                      Highest price (top of axis)
-                    </Label>
-                    <Input
-                      id="price-max"
-                      type="number"
-                      step="any"
-                      placeholder="e.g. 1.09500"
-                      value={priceMax}
-                      onChange={(e) => { setPriceMax(e.target.value); setRangeError(''); }}
-                      className="font-mono text-sm"
-                      data-testid="input-price-max"
-                    />
-                  </div>
-                </div>
-
-                {rangeError && (
-                  <div className="flex items-center gap-2 text-rose-600 dark:text-rose-400 text-sm mb-4 p-3 bg-rose-50 dark:bg-rose-900/20 rounded-lg border border-rose-200 dark:border-rose-900/40">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{rangeError}</span>
-                  </div>
-                )}
-
                 <Button
+                  size="sm"
+                  variant="outline"
                   onClick={runAnalysis}
-                  disabled={!canAnalyze}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white"
-                  data-testid="button-analyze"
+                  className="shrink-0 border-rose-300 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:text-rose-400"
                 >
-                  Analyze Chart
+                  Retry
                 </Button>
               </div>
             )}
@@ -276,9 +247,12 @@ export default function Analyze() {
             {currentPlan ? (
               analysisMode === 'auto' ? <ResultsPanel /> : <ManualLevelsPanel />
             ) : !isAnalyzing ? (
-              <div className="flex-1 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-center p-8 text-center">
+              <div className="flex-1 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center p-8 text-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-slate-400" />
+                </div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
-                  Enter the price range from the chart's right axis, then click "Analyze Chart".
+                  Click "Analyze Chart" to let the AI read the chart and generate a trade plan automatically.
                 </p>
               </div>
             ) : null}

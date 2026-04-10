@@ -16,6 +16,10 @@ export interface TradePlan {
   imageDataUrl: string;
   priceMin: number;
   priceMax: number;
+  // AI-provided fields
+  context: string;      // asset name, e.g. "EUR/USD", "BTC/USD"
+  timeframe: string;    // chart timeframe, e.g. "4H", "Daily"
+  keyLevels: string;    // description of key support/resistance
 }
 
 export interface ManualLevels {
@@ -33,10 +37,6 @@ export function calculateRiskReward(entry: number, sl: number, tp: number): numb
   return Number((reward / risk).toFixed(2));
 }
 
-/**
- * Determine appropriate decimal places based on price magnitude.
- * Forex pairs (< 10): 5 decimals. Mid-range (10–1000): 2 decimals. Large (> 1000): 1 decimal.
- */
 function getDecimals(price: number): number {
   if (price < 0.01) return 8;
   if (price < 10) return 5;
@@ -49,103 +49,78 @@ function round(value: number, decimals: number): number {
   return Number(value.toFixed(decimals));
 }
 
-function hashString(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-}
-
 /**
- * Analyze chart using the visible price range from the chart's right axis.
- * priceMin = lowest price visible on the right axis
- * priceMax = highest price visible on the right axis
+ * Build a TradePlan from the AI API response.
+ * Maps the raw ChartAnalysisResult to a fully-typed TradePlan.
  */
-export function analyzeChart(imageDataUrl: string, priceMin: number, priceMax: number): TradePlan {
-  const hash = hashString(imageDataUrl.slice(0, 1000));
-  const isBuy = hash % 2 === 0;
-  const direction = isBuy ? 'BUY' : 'SELL';
+export function buildPlanFromAIResponse(
+  imageDataUrl: string,
+  ai: {
+    context: string;
+    timeframe: string;
+    priceMin: number;
+    priceMax: number;
+    direction: 'BUY' | 'SELL';
+    entry: number;
+    sl: number;
+    tp1: number;
+    tp2: number;
+    tp3: number;
+    confidence: 'LOW' | 'MEDIUM' | 'GOOD';
+    confidenceScore: number;
+    explanation: string;
+    setupQuality: string;
+    keyLevels: string;
+  },
+): TradePlan {
+  const decimals = getDecimals(ai.entry);
 
-  const range = priceMax - priceMin;
-  const decimals = getDecimals(priceMin);
+  // Recalculate TPs at 1R/2R/3R from actual entry and SL (AI may have been imprecise)
+  const risk = Math.abs(ai.entry - ai.sl);
+  const isBuy = ai.direction === 'BUY';
+  const tp1 = round(isBuy ? ai.entry + risk * 1 : ai.entry - risk * 1, decimals);
+  const tp2 = round(isBuy ? ai.entry + risk * 2 : ai.entry - risk * 2, decimals);
+  const tp3 = round(isBuy ? ai.entry + risk * 3 : ai.entry - risk * 3, decimals);
 
-  // Seed a normalized 0-1 offset using the hash
-  const hashFrac1 = (hash % 1000) / 1000;   // 0.000 – 0.999
-  const hashFrac2 = ((hash >> 8) % 1000) / 1000;
-
-  // Entry placement:
-  // BUY: entry in lower-to-mid section of range (25–55%) — buying near support
-  // SELL: entry in upper-to-mid section of range (45–75%) — selling near resistance
-  let entryFrac: number;
-  if (isBuy) {
-    entryFrac = 0.25 + hashFrac1 * 0.30; // 25–55% of range
-  } else {
-    entryFrac = 0.45 + hashFrac1 * 0.30; // 45–75% of range
-  }
-
-  const entry = round(priceMin + entryFrac * range, decimals);
-
-  // SL: 0.8–2% of the visible range beyond entry
-  const slDistance = range * (0.008 + hashFrac2 * 0.012);
-  const sl = round(isBuy ? entry - slDistance : entry + slDistance, decimals);
-
-  // TPs at 1R, 2R, 3R
-  const risk = Math.abs(entry - sl);
-  const tp1 = round(isBuy ? entry + risk * 1 : entry - risk * 1, decimals);
-  const tp2 = round(isBuy ? entry + risk * 2 : entry - risk * 2, decimals);
-  const tp3 = round(isBuy ? entry + risk * 3 : entry - risk * 3, decimals);
-
-  // Clamp TP3 within visible range (±5% buffer allowed)
-  const buffer = range * 0.05;
-  const tp3Clamped = isBuy
-    ? Math.min(tp3, priceMax + buffer)
-    : Math.max(tp3, priceMin - buffer);
-  const tp3Final = round(tp3Clamped, decimals);
-
-  const rrTp1 = calculateRiskReward(entry, sl, tp1);
-  const rrTp2 = calculateRiskReward(entry, sl, tp2);
-  const rrTp3 = calculateRiskReward(entry, sl, tp3Final);
-
-  const score = 40 + (hash % 46);
-  let confidence: 'LOW' | 'MEDIUM' | 'GOOD' = 'LOW';
-  if (score > 75) confidence = 'GOOD';
-  else if (score > 55) confidence = 'MEDIUM';
-
-  const explanation = isBuy
-    ? `Price is showing a potential bounce off a key support zone near ${sl.toFixed(decimals)}. ` +
-      `The entry at ${entry.toFixed(decimals)} offers a clearly defined risk with the stop loss placed below the invalidation level. ` +
-      `The first target at ${tp1.toFixed(decimals)} aligns with the next resistance area.`
-    : `Price is facing rejection at a major resistance level near ${sl.toFixed(decimals)}. ` +
-      `The entry at ${entry.toFixed(decimals)} captures the beginning of a potential move lower, with the stop loss set above the rejection zone. ` +
-      `The first target at ${tp1.toFixed(decimals)} aligns with nearby support.`;
-
-  const setupQuality = score > 75
-    ? 'High probability setup with excellent risk-reward characteristics. The levels align well with chart structure.'
-    : score > 55
-    ? 'Standard setup. Wait for a clear price reaction and confirmation before entering.'
-    : 'Marginal setup. Consider reducing position size or waiting for a higher-confidence entry signal.';
+  const rrTp1 = calculateRiskReward(ai.entry, ai.sl, tp1);
+  const rrTp2 = calculateRiskReward(ai.entry, ai.sl, tp2);
+  const rrTp3 = calculateRiskReward(ai.entry, ai.sl, tp3);
 
   return {
-    direction,
-    entry,
-    sl,
+    direction: ai.direction,
+    entry: round(ai.entry, decimals),
+    sl: round(ai.sl, decimals),
     tp1,
     tp2,
-    tp3: tp3Final,
+    tp3,
     rrRatio: rrTp3,
     rrTp1,
     rrTp2,
     rrTp3,
-    confidence,
-    confidenceScore: score,
-    explanation,
-    setupQuality,
+    confidence: ai.confidence,
+    confidenceScore: Math.max(0, Math.min(100, ai.confidenceScore)),
+    explanation: ai.explanation,
+    setupQuality: ai.setupQuality,
     imageDataUrl,
-    priceMin,
-    priceMax,
+    priceMin: ai.priceMin,
+    priceMax: ai.priceMax,
+    context: ai.context,
+    timeframe: ai.timeframe,
+    keyLevels: ai.keyLevels,
+  };
+}
+
+export function calculateRiskRewardValues(
+  entry: number,
+  sl: number,
+  tp1: number,
+  tp2: number,
+  tp3: number,
+) {
+  return {
+    rrTp1: calculateRiskReward(entry, sl, tp1),
+    rrTp2: calculateRiskReward(entry, sl, tp2),
+    rrTp3: calculateRiskReward(entry, sl, tp3),
   };
 }
 
@@ -155,6 +130,9 @@ export function generateTradePlan(
   direction: 'BUY' | 'SELL',
   priceMin = 0,
   priceMax = 0,
+  context = '',
+  timeframe = '',
+  keyLevels = '',
 ): TradePlan {
   const rrTp1 = calculateRiskReward(levels.entry, levels.sl, levels.tp1);
   const rrTp2 = calculateRiskReward(levels.entry, levels.sl, levels.tp2);
@@ -182,8 +160,7 @@ export function generateTradePlan(
   const risk = Math.abs(levels.entry - levels.sl);
   const riskPct = levels.entry > 0 ? ((risk / levels.entry) * 100).toFixed(2) : '—';
 
-  explanation += ` Risk distance: ${risk.toFixed(decimals)} (${riskPct}% of entry price).` +
-    ' The stop loss is placed to invalidate the setup if price moves against you.';
+  explanation += ` Risk distance: ${risk.toFixed(decimals)} (${riskPct}% of entry).`;
 
   return {
     direction,
@@ -203,5 +180,8 @@ export function generateTradePlan(
     imageDataUrl,
     priceMin,
     priceMax,
+    context,
+    timeframe,
+    keyLevels,
   };
 }
