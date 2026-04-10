@@ -6,79 +6,147 @@ export function clearAnnotations(canvas: HTMLCanvasElement): void {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-export function renderAnnotations(canvas: HTMLCanvasElement, plan: TradePlan, imageWidth: number, imageHeight: number): void {
+function getDecimals(price: number): number {
+  if (price < 0.01) return 8;
+  if (price < 10) return 5;
+  if (price < 100) return 3;
+  if (price < 10000) return 2;
+  return 1;
+}
+
+/**
+ * Maps a price to a Y coordinate using the chart's actual visible price range.
+ * priceMin  → bottom of canvas
+ * priceMax  → top of canvas
+ * A small vertical padding (8% each side) matches most chart layouts where
+ * the axis labels don't land at the absolute edge of the image.
+ */
+function makePriceToY(priceMin: number, priceMax: number, canvasHeight: number) {
+  const EDGE_PADDING = 0.08; // 8% top/bottom — matches typical chart padding
+  const usableTop = canvasHeight * EDGE_PADDING;
+  const usableBottom = canvasHeight * (1 - EDGE_PADDING);
+  const usableHeight = usableBottom - usableTop;
+
+  return (price: number): number => {
+    if (priceMax === priceMin) return canvasHeight / 2;
+    const fraction = (price - priceMin) / (priceMax - priceMin);
+    // Higher prices → smaller Y (top of canvas)
+    return usableBottom - fraction * usableHeight;
+  };
+}
+
+export function renderAnnotations(
+  canvas: HTMLCanvasElement,
+  plan: TradePlan,
+  _imageWidth: number,
+  _imageHeight: number,
+): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
   clearAnnotations(canvas);
 
-  // Find min and max price to scale
-  const prices = [plan.entry, plan.sl, plan.tp1, plan.tp2, plan.tp3];
-  const minPrice = Math.min(...prices);
-  const maxPrice = Math.max(...prices);
-  
-  const padding = (maxPrice - minPrice) * 0.1;
-  const priceRange = (maxPrice + padding) - (minPrice - padding);
-  
-  const getY = (price: number) => {
-    const normalizedPrice = price - (minPrice - padding);
-    // Invert Y axis because canvas 0 is top
-    return canvas.height - (normalizedPrice / priceRange) * canvas.height;
-  };
+  const decimals = getDecimals(plan.entry);
+
+  // Use the user-supplied chart price range for accurate positioning.
+  // Fall back to a range derived from the trade levels if no range was provided.
+  let refMin = plan.priceMin;
+  let refMax = plan.priceMax;
+  if (!refMin || !refMax || refMin >= refMax) {
+    const prices = [plan.entry, plan.sl, plan.tp1, plan.tp2, plan.tp3];
+    const spread = Math.max(...prices) - Math.min(...prices);
+    refMin = Math.min(...prices) - spread * 0.2;
+    refMax = Math.max(...prices) + spread * 0.2;
+  }
+
+  const getY = makePriceToY(refMin, refMax, canvas.height);
 
   const entryY = getY(plan.entry);
-  const slY = getY(plan.sl);
-  const tp1Y = getY(plan.tp1);
-  const tp2Y = getY(plan.tp2);
-  const tp3Y = getY(plan.tp3);
+  const slY    = getY(plan.sl);
+  const tp1Y   = getY(plan.tp1);
+  const tp2Y   = getY(plan.tp2);
+  const tp3Y   = getY(plan.tp3);
 
-  // Draw zones
-  ctx.globalAlpha = 0.15;
-  
-  // Risk zone
-  ctx.fillStyle = '#ef4444'; // red-500
-  const riskY = Math.min(entryY, slY);
-  const riskH = Math.abs(entryY - slY);
-  ctx.fillRect(0, riskY, canvas.width, riskH);
+  // ── Shaded zones ──────────────────────────────────────────────────────────
+  ctx.globalAlpha = 0.12;
 
-  // Reward zone (Entry to TP1 at least)
-  ctx.fillStyle = '#10b981'; // emerald-500
-  const rewardY = Math.min(entryY, tp3Y);
-  const rewardH = Math.abs(entryY - tp3Y);
-  ctx.fillRect(0, rewardY, canvas.width, rewardH);
+  // Risk zone (entry ↔ SL)
+  ctx.fillStyle = '#ef4444';
+  ctx.fillRect(0, Math.min(entryY, slY), canvas.width, Math.abs(entryY - slY));
+
+  // Reward zone (entry ↔ TP3)
+  ctx.fillStyle = '#10b981';
+  ctx.fillRect(0, Math.min(entryY, tp3Y), canvas.width, Math.abs(entryY - tp3Y));
 
   ctx.globalAlpha = 1.0;
 
-  const drawLine = (y: number, color: string, label: string, price: number, isDashed: boolean = false) => {
+  // ── Helper: draw a level line + label ────────────────────────────────────
+  const drawLine = (
+    y: number,
+    color: string,
+    label: string,
+    price: number,
+    isDashed = false,
+    lineWidth = 2,
+  ) => {
+    // Guard against drawing off-canvas
+    if (y < -20 || y > canvas.height + 20) return;
+
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(canvas.width, y);
-    ctx.lineWidth = 2;
+    ctx.lineWidth = lineWidth;
     ctx.strokeStyle = color;
-    if (isDashed) {
-      ctx.setLineDash([5, 5]);
-    } else {
-      ctx.setLineDash([]);
-    }
+    ctx.setLineDash(isDashed ? [6, 5] : []);
     ctx.stroke();
+    ctx.setLineDash([]);
 
-    // Label background
-    ctx.font = '600 12px Inter, sans-serif';
-    const text = `${label}: ${price.toFixed(2)}`;
+    // Label box — right-aligned, sits right on the line
+    ctx.font = `700 11px "Inter", "Roboto Mono", monospace`;
+    const priceStr = price.toFixed(decimals);
+    const text = `${label}  ${priceStr}`;
     const textWidth = ctx.measureText(text).width;
-    
-    ctx.fillStyle = '#0f172a'; // slate-900
-    ctx.fillRect(canvas.width - textWidth - 20, y - 10, textWidth + 20, 20);
-    
+    const boxH = 18;
+    const boxW = textWidth + 16;
+    const boxX = canvas.width - boxW - 4;
+    const boxY = y - boxH / 2;
+
+    // Background pill
+    ctx.fillStyle = '#0f172a';
+    ctx.globalAlpha = 0.88;
+    roundRect(ctx, boxX, boxY, boxW, boxH, 4);
+    ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // Text
     ctx.fillStyle = color;
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, canvas.width - 10, y);
+    ctx.fillText(text, boxX + 8, y);
   };
 
-  drawLine(slY, '#ef4444', 'SL', plan.sl, true);
-  drawLine(entryY, '#f59e0b', 'ENTRY', plan.entry);
-  drawLine(tp1Y, '#34d399', 'TP1 (1R)', plan.tp1);
-  drawLine(tp2Y, '#10b981', 'TP2 (2R)', plan.tp2);
-  drawLine(tp3Y, '#059669', 'TP3 (3R)', plan.tp3);
+  // ── Draw levels (bottom to top to avoid overlapping labels) ──────────────
+  // SL — crimson dashed
+  drawLine(slY,    '#f87171', 'SL',          plan.sl,    true,  2);
+  // Entry — amber solid
+  drawLine(entryY, '#fbbf24', 'ENTRY',       plan.entry, false, 2.5);
+  // TPs — progressively lighter green
+  drawLine(tp1Y,   '#34d399', 'TP1 (1R)',    plan.tp1,   false, 2);
+  drawLine(tp2Y,   '#10b981', 'TP2 (2R)',    plan.tp2,   false, 2);
+  drawLine(tp3Y,   '#059669', 'TP3 (3R)',    plan.tp3,   false, 2);
+}
+
+// Tiny helper — CanvasRenderingContext2D.roundRect is not available in all browsers
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }

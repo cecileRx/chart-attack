@@ -23,7 +23,7 @@ export function ManualLevelsPanel() {
 
   useEffect(() => {
     if (currentPlan && currentImage) {
-      const updatedPlan = generateTradePlan(currentImage, levels, direction);
+      const updatedPlan = generateTradePlan(currentImage, levels, direction, currentPlan?.priceMin ?? 0, currentPlan?.priceMax ?? 0);
       setCurrentPlan(updatedPlan);
     }
   }, [levels, direction, currentImage]);

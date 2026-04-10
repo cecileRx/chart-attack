@@ -10,6 +10,15 @@ interface LevelLineProps {
   isMain?: boolean;
 }
 
+function formatPrice(price: number): string {
+  if (price <= 0) return price.toString();
+  if (price < 0.01) return price.toFixed(8);
+  if (price < 10)   return price.toFixed(5);
+  if (price < 100)  return price.toFixed(3);
+  if (price < 10000) return price.toFixed(2);
+  return price.toFixed(1);
+}
+
 export function LevelLine({ label, price, colorClass, badgeText, description, isMain }: LevelLineProps) {
   return (
     <div className={`flex flex-col p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 ${isMain ? 'ring-1 ring-slate-300 dark:ring-slate-700' : ''}`}>
@@ -25,7 +34,7 @@ export function LevelLine({ label, price, colorClass, badgeText, description, is
             </Badge>
           )}
           <span className="font-mono text-lg font-semibold tabular-nums text-slate-900 dark:text-white">
-            {price.toFixed(2)}
+            {formatPrice(price)}
           </span>
         </div>
       </div>
