@@ -43,6 +43,13 @@ function SignInPage() {
             card: "shadow-xl",
           },
         }}
+        localization={{
+          signIn: {
+            start: {
+              title: "Sign in to ChartSense",
+            },
+          },
+        }}
       />
     </div>
   );
@@ -60,6 +67,13 @@ function SignUpPage() {
         appearance={{
           elements: {
             card: "shadow-xl",
+          },
+        }}
+        localization={{
+          signUp: {
+            start: {
+              title: "Sign up for ChartSense",
+            },
           },
         }}
       />
