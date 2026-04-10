@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Chart Analysis Assistant"
+version = "1.0.0"
+id = "artifacts/chart-analyzer"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26019
+
+[services.development]
+run = "pnpm --filter @workspace/chart-analyzer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/chart-analyzer", "run", "build" ]
+publicDir = "artifacts/chart-analyzer/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26019"
+BASE_PATH = "/"

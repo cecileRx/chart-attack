@@ -1,0 +1,157 @@
+import React from 'react';
+import { useApp } from './AppContext';
+import { LevelLine } from './LevelLine';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown } from 'lucide-react';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { addToHistory } from '@/lib/sessionHistory';
+
+export function ResultsPanel() {
+  const { currentPlan, setAnalysisMode, setCurrentPlan, setCurrentImage } = useApp();
+
+  if (!currentPlan) return null;
+
+  const isBuy = currentPlan.direction === 'BUY';
+  const confidenceColor = 
+    currentPlan.confidence === 'GOOD' ? 'bg-emerald-500' :
+    currentPlan.confidence === 'MEDIUM' ? 'bg-amber-500' : 'bg-red-500';
+
+  const handleExport = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) return;
+    
+    const bgCanvas = document.createElement('canvas');
+    bgCanvas.width = canvas.width;
+    bgCanvas.height = canvas.height;
+    const ctx = bgCanvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Fill background
+    ctx.fillStyle = '#0f172a'; // slate-900
+    ctx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+    
+    // Draw original image
+    const img = document.querySelector('img');
+    if (img) {
+      // Calculate dimensions to match ChartCanvas logic
+      const containerRatio = canvas.clientWidth / canvas.clientHeight;
+      const imageRatio = img.naturalWidth / img.naturalHeight;
+      let width, height;
+      if (imageRatio > containerRatio) {
+        width = canvas.clientWidth;
+        height = width / imageRatio;
+      } else {
+        height = canvas.clientHeight;
+        width = height * imageRatio;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+    }
+    
+    // Draw annotations
+    ctx.drawImage(canvas, 0, 0);
+    
+    const dataUrl = bgCanvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `ChartSense-Plan-${Date.now()}.png`;
+    link.href = dataUrl;
+    link.click();
+  };
+
+  const handleNewAnalysis = () => {
+    setCurrentPlan(null);
+    setCurrentImage(null);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+      <div className="p-5 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className={`px-3 py-1 rounded-md text-sm font-bold flex items-center ${isBuy ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'}`}>
+              {isBuy ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+              {currentPlan.direction}
+            </div>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center cursor-help">
+                    <div className={`w-2 h-2 rounded-full ${confidenceColor} mr-2`} />
+                    <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                      {currentPlan.confidenceScore}% Score
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>This score is simulated and for educational purposes only.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="text-sm font-mono text-slate-500 dark:text-slate-400">
+            Final RR {currentPlan.rrRatio}:1
+          </div>
+        </div>
+
+        <Progress value={currentPlan.confidenceScore} className="h-1.5" />
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-6">
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider">Trade Levels</h3>
+          
+          <div className="space-y-2">
+            <LevelLine label="TP3" price={currentPlan.tp3} colorClass="bg-emerald-600" badgeText={`${currentPlan.rrTp3}:1`} />
+            <LevelLine label="TP2" price={currentPlan.tp2} colorClass="bg-emerald-500" badgeText={`${currentPlan.rrTp2}:1`} />
+            <LevelLine label="TP1" price={currentPlan.tp1} colorClass="bg-emerald-400" badgeText={`${currentPlan.rrTp1}:1`} description="Consider securing partial profits here." />
+            <LevelLine label="ENTRY" price={currentPlan.entry} colorClass="bg-amber-500" isMain />
+            <LevelLine label="STOP LOSS" price={currentPlan.sl} colorClass="bg-rose-500" description="Maximum risk level. Exit if price hits this." />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Accordion type="single" collapsible defaultValue="explanation">
+            <AccordionItem value="explanation" className="border-slate-200 dark:border-slate-800">
+              <AccordionTrigger className="text-sm font-semibold text-slate-900 dark:text-white uppercase tracking-wider hover:no-underline">
+                Why this setup?
+              </AccordionTrigger>
+              <AccordionContent className="text-slate-600 dark:text-slate-300 leading-relaxed space-y-4">
+                <p>{currentPlan.explanation}</p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                  <p className="flex items-start text-sm text-blue-800 dark:text-blue-300">
+                    <Info className="w-4 h-4 mr-2 shrink-0 mt-0.5" />
+                    <span>{currentPlan.setupQuality}</span>
+                  </p>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
+
+      <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant="outline" onClick={() => setAnalysisMode('manual')} className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <Settings2 className="w-4 h-4 mr-2" />
+            Adjust Levels
+          </Button>
+          <Button variant="outline" onClick={handleExport} className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700">
+            <Download className="w-4 h-4 mr-2" />
+            Export Plan
+          </Button>
+        </div>
+        <Button onClick={handleNewAnalysis} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <RefreshCcw className="w-4 h-4 mr-2" />
+          New Analysis
+        </Button>
+      </div>
+    </div>
+  );
+}

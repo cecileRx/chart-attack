@@ -1,0 +1,384 @@
+Voici la traduction en anglais, formulée de manière naturelle et propre pour être utilisée comme prompt produit dans Blink. J’emploie les termes standard du trading comme Stop Loss (SL) et Take Profit (TP), couramment utilisés dans les interfaces et contenus éducatifs pour débutants.
+
+English translation
+You are an expert in product design, trading UX, and web application development.
+
+Build a responsive web application for beginner traders that allows them to import a chart image and then receive an educational trade setup suggestion with:
+
+a trade direction: buy or sell
+
+an entry zone
+
+a stop loss (SL)
+
+one or more take profit targets (TP1, TP2, TP3)
+
+a risk/reward ratio
+
+a simple educational explanation
+
+a confidence level, with a warning that this is not financial advice but a learning aid
+
+The application must not promise guaranteed signals.
+It should be designed as an educational chart analysis assistant for beginners.
+
+Product goal
+Create a simple, reassuring, and highly visual app that helps a beginner user understand:
+
+where an entry could be taken
+
+where to place a logical stop loss
+
+where to take profits
+
+why this scenario is being suggested
+
+what the risks are
+
+The app must turn an imported chart into a clear trade plan, not just a raw prediction.
+
+The tone must be clear, educational, sober, and professional, with no unnecessary jargon.
+
+The experience should inspire trust, precision, and discipline, similar to a trading or financial analysis interface.
+
+Target users
+Target users include:
+
+beginner traders
+
+people who do not yet know how to properly place their entry, TP, and SL
+
+users who want a simple visual reading of a chart
+
+users on both mobile and desktop
+
+The level of explanation should be suitable for someone with little to moderate trading knowledge.
+
+Product positioning
+This application is:
+
+an analysis assistant
+
+an educational tool
+
+a trade plan generator
+
+a visualization tool for imported charts
+
+This application is not:
+
+a broker
+
+a live trading platform
+
+a profit promise
+
+an automated trading bot
+
+Core functionality
+The user must be able to:
+
+import a chart image from their device
+
+view the chart inside the application
+
+launch the analysis
+
+receive a trade scenario displayed visually on the image
+
+view the following levels:
+
+entry
+
+SL
+
+TP1
+
+TP2
+
+TP3
+
+read a simple explanation
+
+manually adjust levels if needed
+
+export or save the result as an image or summary
+
+Expected behavior
+After the chart is imported, the application must display an analysis interface with visual overlays:
+
+entry line or entry zone
+
+red line for the SL
+
+green or blue lines for the TPs
+
+text label on each level
+
+summary box with:
+
+position type: Long / Short
+
+entry
+
+SL
+
+TP1 / TP2 / TP3
+
+risk
+
+reward
+
+RR ratio
+
+confidence level
+
+educational summary
+
+Operating modes
+Provide 2 modes:
+
+Mode 1 — Automatic guided analysis
+The application automatically suggests a trade scenario based on the imported chart.
+
+Mode 2 — Assisted manual mode
+The user can:
+
+click on the chart to place an entry
+
+define SL and TP levels
+
+let the app automatically calculate:
+
+risk distance
+
+risk/reward ratio
+
+setup consistency
+
+educational commentary
+
+User interface
+Build a modern, clean, and professional web app interface.
+
+Interface constraints:
+
+design inspired by financial dashboards
+
+light or dark background with dark/light mode
+
+highly readable sans-serif typography
+
+strong readability for numbers
+
+well-spaced elements
+
+reassuring interface, not “gaming”-style
+
+mobile-first, but very polished on desktop
+
+no excessive visual effects
+
+no generic “AI template” look
+
+no complicated jargon in the text
+
+Screen structure
+1. Home screen
+Content:
+
+clear title
+
+subtitle explaining that the app helps turn a chart into a trade plan
+
+primary button: “Import a chart”
+
+short 3-step explanation:
+
+import
+
+analyze
+
+understand the setup
+
+discreet but visible legal warning
+
+2. Import screen
+Features:
+
+drag and drop
+
+upload button
+
+image preview
+
+accepted formats: PNG, JPG, JPEG, WEBP
+
+help text: “Import a TradingView, MT4, MT5, or similar screenshot”
+
+3. Analysis screen
+Main area:
+
+large chart display
+
+graphical overlay of levels
+
+side panel or bottom panel with results
+
+Results panel:
+
+Direction: Buy / Sell
+
+Entry
+
+Stop Loss
+
+TP1
+
+TP2
+
+TP3
+
+RR Ratio
+
+Confidence
+
+Simple explanation
+
+“Adjust levels” button
+
+“New analysis” button
+
+“Export” button
+
+4. Manual mode screen
+Features:
+
+place points on the chart
+
+drag and drop entry / SL / TP levels
+
+automatic recalculation of data
+
+instant RR display
+
+live educational message
+
+5. Local session history
+Without a complex backend at the beginning, add a simple in-memory session history with:
+
+chart thumbnail
+
+direction
+
+RR
+
+date/time
+
+“Review” button
+
+Business logic to implement
+Create a credible demo logic to suggest a setup.
+
+Even if the real AI detection is simulated at first, the experience must feel coherent.
+
+The application must be able to generate a scenario based on a simple visual trading logic, for example:
+
+approximate support/resistance zone detection
+
+suggest a buy trade if a bullish reaction is likely
+
+suggest a sell trade if a bearish rejection is likely
+
+place the SL beyond the invalidation zone
+
+calculate TPs using risk multiples:
+
+TP1 = 1R
+
+TP2 = 2R
+
+TP3 = 3R
+
+Also add educational commentary such as:
+
+“The stop loss is placed below the support zone to invalidate the scenario.”
+
+“The first target helps secure part of the trade.”
+
+“The risk/reward ratio becomes more attractive from TP2 onward.”
+
+Important note about artificial intelligence
+Prepare the architecture so that a real AI or image-analysis API can be connected later.
+
+For the first version:
+
+use coherent simulated data
+
+or simple heuristic logic
+
+but structure the code so the analysis engine can be replaced later
+
+Provide a clear module named for example:
+
+analyzeChart()
+
+generateTradePlan()
+
+calculateRiskReward()
+
+renderAnnotations()
+
+Calculations to include
+The application must automatically calculate:
+
+entry → SL distance
+
+entry → TP1 distance
+
+entry → TP2 distance
+
+entry → TP3 distance
+
+RR ratio for each TP
+
+theoretical risk percentage
+
+simple setup quality score
+
+Example score values:
+
+low
+
+medium
+
+good
+
+Built-in education
+Add a “Why this setup?” section with short and simple explanations.
+
+Also add a “Beginner tips” section with examples such as:
+
+“Never risk more than a small portion of your capital.”
+
+“Wait for confirmation before entering.”
+
+“A good trade is not only about direction, but also about having a good SL and a good RR.”
+
+Safety and compliance
+The interface must include:
+
+a visible disclaimer:
+
+“This application is an educational tool and does not constitute financial advice.”
+
+a risk warning:
+
+“Trading involves a risk of capital loss.”
+
+no promise of profits
+
+no misleading wording such as “safe signal,” “winning trade,” or “guaranteed”
+
+Desired technologies
+Build a modern front-end web app that is easy to maintain.
