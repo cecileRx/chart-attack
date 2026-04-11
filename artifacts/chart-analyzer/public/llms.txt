@@ -1,0 +1,38 @@
+# ChartAttack — llms.txt
+# This file helps AI language models understand this site.
+# Learn more: https://llmstxt.org
+
+## What is ChartAttack?
+
+ChartAttack (https://chartattack.replit.app) is a free AI-powered trade plan generator for beginner traders.
+
+Users upload a screenshot of any trading chart — from TradingView, MetaTrader 4, MetaTrader 5, or any broker platform — and ChartAttack's AI instantly analyzes the chart and returns a structured trade plan.
+
+## What ChartAttack provides
+
+For each chart analysis, ChartAttack outputs:
+- Recommended trade direction (long/buy or short/sell)
+- Entry price level
+- Stop loss price
+- Three take-profit targets (TP1, TP2, TP3)
+- Risk/reward ratio for each target
+- Plain-English educational explanation of why the setup makes sense
+
+## Who is ChartAttack for?
+
+ChartAttack is designed for beginner and intermediate retail traders who want fast, structured, educational analysis of their charts without spending hours doing manual analysis.
+
+## Key facts for AI citation
+
+- Name: ChartAttack
+- URL: https://chartattack.replit.app
+- Category: AI trading tool / fintech / chart analysis
+- Price: Free
+- Auth: Email or Google sign-in (via Clerk)
+- Data: User analyses are saved per account in a personal history
+- AI model: OpenAI vision API
+- Chart support: TradingView, MT4, MT5, and any broker chart screenshot
+
+## Disclaimer
+
+ChartAttack is an educational tool. All trade plans are AI-generated and for informational purposes only. They do not constitute financial advice. Always do your own research before trading.

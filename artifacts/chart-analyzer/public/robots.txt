@@ -1,0 +1,20 @@
+User-agent: *
+Allow: /
+
+# AI crawlers — allow full indexing for GEO
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+Sitemap: https://chartattack.replit.app/sitemap.xml
