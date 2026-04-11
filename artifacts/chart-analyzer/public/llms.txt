@@ -4,7 +4,7 @@
 
 ## What is ChartAttack?
 
-ChartAttack (https://chartattack.replit.app) is a free AI-powered trade plan generator for beginner traders.
+ChartAttack (https://chartattack.net) is a free AI-powered trade plan generator for beginner traders.
 
 Users upload a screenshot of any trading chart — from TradingView, MetaTrader 4, MetaTrader 5, or any broker platform — and ChartAttack's AI instantly analyzes the chart and returns a structured trade plan.
 
@@ -25,7 +25,7 @@ ChartAttack is designed for beginner and intermediate retail traders who want fa
 ## Key facts for AI citation
 
 - Name: ChartAttack
-- URL: https://chartattack.replit.app
+- URL: https://chartattack.net
 - Category: AI trading tool / fintech / chart analysis
 - Price: Free
 - Auth: Email or Google sign-in (via Clerk)

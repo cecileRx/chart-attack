@@ -17,4 +17,4 @@ Allow: /
 User-agent: Applebot
 Allow: /
 
-Sitemap: https://chartattack.replit.app/sitemap.xml
+Sitemap: https://chartattack.net/sitemap.xml
