@@ -7,77 +7,91 @@ interface SharkIconProps {
 export function SharkIcon({ className }: SharkIconProps) {
   return (
     <svg
-      viewBox="0 0 80 64"
+      viewBox="0 0 80 80"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       aria-label="ChartAttack shark logo"
     >
-      {/* ─── SHARK faces LEFT — open mouth is on the LEFT ─── */}
+      {/* ─── FRONT-FACING SHARK HEAD ─── */}
 
-      {/* Tail: forked, angular (right side) */}
-      <path d="M74 32 L80 14 L66 28 Z" fill="currentColor" />
-      <path d="M74 32 L80 50 L66 36 Z" fill="currentColor" />
+      {/* Outer head / crown */}
+      <ellipse cx="40" cy="36" rx="32" ry="28" fill="currentColor" />
 
-      {/* Dorsal fin: tall blade */}
-      <path d="M48 18 L54 2 L60 18 Z" fill="currentColor" />
-
-      {/* Lower pectoral fin */}
-      <path d="M46 48 L44 62 L56 50 Z" fill="currentColor" />
-
-      {/* ── BODY ── torpedo outline */}
+      {/* Snout protrusion — pointed tip at bottom */}
       <path
-        d="M66 32
-           C66 22 56 15 42 14
-           C28 13 12 18 6 26
-           L2 32
-           L6 38
-           C12 46 28 51 42 50
-           C56 49 66 42 66 32 Z"
+        d="M26 52 C26 60 32 66 40 68 C48 66 54 60 54 52 L26 52 Z"
         fill="currentColor"
       />
 
-      {/* ── MOUTH: cut out the snout as a wide open gape ── */}
-      {/* Upper jaw (above mid-line on left) */}
+      {/* Dorsal fin / top fin coming toward viewer — center top */}
+      <path d="M34 10 L40 2 L46 10 Z" fill="currentColor" />
+
+      {/* Side fins spreading left and right */}
+      <path d="M8 38 L2 28 L16 40 Z" fill="currentColor" />
+      <path d="M72 38 L78 28 L64 40 Z" fill="currentColor" />
+
+      {/* ── EYES ── */}
+      {/* Left eye */}
+      <circle cx="28" cy="30" r="7" fill="white" opacity="0.95" />
+      <circle cx="28.8" cy="31" r="4" fill="#04111f" />
+      <circle cx="30.5" cy="29.5" r="1.5" fill="white" />
+
+      {/* Right eye */}
+      <circle cx="52" cy="30" r="7" fill="white" opacity="0.95" />
+      <circle cx="52.8" cy="31" r="4" fill="#04111f" />
+      <circle cx="54.5" cy="29.5" r="1.5" fill="white" />
+
+      {/* Nostril slits */}
+      <ellipse cx="37" cy="44" rx="2" ry="1.2" fill="#04111f" opacity="0.4" />
+      <ellipse cx="43" cy="44" rx="2" ry="1.2" fill="#04111f" opacity="0.4" />
+
+      {/* ── MOUTH — wide gaping open ── */}
+      {/* Mouth cavity (dark throat) */}
       <path
-        d="M2 32 L6 22 C10 18 16 16 22 16 L22 32 Z"
-        fill="currentColor"
-      />
-      {/* Lower jaw (below mid-line on left) */}
-      <path
-        d="M2 32 L6 42 C10 46 16 48 22 48 L22 32 Z"
-        fill="currentColor"
+        d="M22 54 C22 62 30 70 40 72 C50 70 58 62 58 54 L22 54 Z"
+        fill="#04111f"
       />
 
-      {/* Mouth cavity (background shows through = open mouth) */}
-      <path
-        d="M4 32 C4 23 12 17 22 17 L22 47 C12 47 4 41 4 32 Z"
-        fill="white"
-        opacity="0.13"
-      />
+      {/* Tongue hint */}
+      <ellipse cx="40" cy="66" rx="8" ry="4" fill="#1a0a0a" opacity="0.6" />
 
-      {/* ── UPPER TEETH ── large triangles pointing down from upper jaw */}
-      <g>
-        <polygon points="5,25  11,25  8,36"  fill="white" />
-        <polygon points="11,21 17,21 14,33" fill="white" />
-        <polygon points="17,19 23,19 20,31" fill="white" />
+      {/* ── UPPER TEETH ── row along top of mouth */}
+      <g fill="white">
+        {/* Center large tooth */}
+        <polygon points="37,54  43,54  40,46" />
+        {/* Left of center */}
+        <polygon points="30,55  36,55  33,47" />
+        {/* Far left */}
+        <polygon points="23,57  29,57  26,50" />
+        {/* Right of center */}
+        <polygon points="44,55  50,55  47,47" />
+        {/* Far right */}
+        <polygon points="51,57  57,57  54,50" />
       </g>
 
-      {/* ── LOWER TEETH ── large triangles pointing up from lower jaw */}
-      <g opacity="0.92">
-        <polygon points="5,39  11,39  8,28"  fill="white" />
-        <polygon points="11,43 17,43 14,31" fill="white" />
-        <polygon points="17,45 23,45 20,33" fill="white" />
+      {/* ── LOWER TEETH ── row along bottom of mouth, pointing up */}
+      <g fill="white" opacity="0.88">
+        {/* Center */}
+        <polygon points="37,66  43,66  40,57" />
+        {/* Left */}
+        <polygon points="29,64  35,64  32,56" />
+        {/* Far left */}
+        <polygon points="22,61  27,61  24.5,53" />
+        {/* Right */}
+        <polygon points="45,64  51,64  48,56" />
+        {/* Far right */}
+        <polygon points="53,61  58,61  55.5,53" />
       </g>
 
-      {/* ── GILL SLITS ── */}
-      <path d="M28 18 L26 46" stroke="white" strokeWidth="1.2" opacity="0.18" strokeLinecap="round" />
-      <path d="M34 17 L32 47" stroke="white" strokeWidth="1.2" opacity="0.18" strokeLinecap="round" />
+      {/* Gill lines — subtle arcs on the sides */}
+      <path d="M14 38 C16 34 16 42 14 44" stroke="white" strokeWidth="1.2" opacity="0.2" strokeLinecap="round" fill="none" />
+      <path d="M18 36 C20 32 20 44 18 46" stroke="white" strokeWidth="1.2" opacity="0.2" strokeLinecap="round" fill="none" />
+      <path d="M66 38 C64 34 64 42 66 44" stroke="white" strokeWidth="1.2" opacity="0.2" strokeLinecap="round" fill="none" />
+      <path d="M62 36 C60 32 60 44 62 46" stroke="white" strokeWidth="1.2" opacity="0.2" strokeLinecap="round" fill="none" />
 
-      {/* ── EYE ── bold and visible */}
-      <circle cx="54" cy="23" r="5.5" fill="white" opacity="0.95" />
-      <circle cx="55" cy="23.8" r="3" fill="#05101f" />
-      <circle cx="56.3" cy="22.5" r="1.2" fill="white" />
+      {/* Head center line / subtle shading */}
+      <path d="M40 10 L40 48" stroke="white" strokeWidth="0.8" opacity="0.06" />
     </svg>
   );
 }
