@@ -6,66 +6,116 @@
 
     <!-- Primary SEO -->
     <title>ChartAttack — AI Trade Plan from Any Chart Screenshot</title>
-    <meta name="description" content="Tired of endless analysis? Upload any trading chart screenshot and get an instant AI-generated trade plan with entry, stop loss, and take-profit levels. Free for beginners." />
-    <meta name="keywords" content="chart analysis, trade plan, AI trading, TradingView analysis, stop loss, take profit, risk reward, beginner trading, chart screenshot, MT4, MT5" />
+    <meta name="description" content="ChartAttack is a free AI tool that turns any trading chart screenshot into an instant trade plan with entry, stop loss, TP1/TP2/TP3 and risk/reward ratio. Supports TradingView, MT4, MT5." />
+    <meta name="keywords" content="ChartAttack, chart analysis AI, trade plan generator, AI trading tool, TradingView chart analysis, stop loss calculator, take profit levels, risk reward ratio, beginner trading tool, MT4 chart analyzer, MT5 analysis, chart screenshot to trade plan" />
     <meta name="author" content="ChartAttack" />
-    <meta name="robots" content="index, follow" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="application-name" content="ChartAttack" />
+    <meta name="theme-color" content="#2563eb" />
     <link rel="canonical" href="https://chartattack.net/" />
 
-    <!-- Open Graph (Facebook, LinkedIn, WhatsApp, Discord) -->
+    <!-- Google Search Console — replace content value with your verification code -->
+    <!-- <meta name="google-site-verification" content="PASTE_YOUR_CODE_HERE" /> -->
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://chartattack.net/" />
     <meta property="og:title" content="ChartAttack — AI Trade Plan from Any Chart Screenshot" />
-    <meta property="og:description" content="Tired of endless analysis? Just bite your trading instantly. Upload a chart, get entry, SL, TP1/TP2/TP3 and risk/reward in seconds." />
+    <meta property="og:description" content="Upload any trading chart screenshot and get an instant AI trade plan with entry, stop loss, TP1/TP2/TP3 and risk/reward. Free for beginner traders." />
     <meta property="og:image" content="https://chartattack.net/opengraph.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ChartAttack AI trade plan generator" />
     <meta property="og:site_name" content="ChartAttack" />
     <meta property="og:locale" content="en_US" />
 
     <!-- Twitter / X Card -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@chartattack" />
     <meta name="twitter:url" content="https://chartattack.net/" />
     <meta name="twitter:title" content="ChartAttack — AI Trade Plan from Any Chart Screenshot" />
-    <meta name="twitter:description" content="Tired of endless analysis? Just bite your trading instantly. Upload a chart, get entry, SL, TP1/TP2/TP3 and risk/reward in seconds." />
+    <meta name="twitter:description" content="Upload any trading chart screenshot and get an instant AI trade plan with entry, stop loss, TP1/TP2/TP3 and risk/reward. Free for beginner traders." />
     <meta name="twitter:image" content="https://chartattack.net/opengraph.jpg" />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <!-- JSON-LD Structured Data: SoftwareApplication -->
+    <!-- JSON-LD: Organization (critical for brand name recognition in Google) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "ChartAttack",
+      "url": "https://chartattack.net/",
+      "logo": "https://chartattack.net/favicon.svg",
+      "description": "ChartAttack is a free AI-powered trade plan generator for beginner traders. Upload any chart screenshot and get entry, stop loss, and take-profit levels instantly.",
+      "sameAs": []
+    }
+    </script>
+
+    <!-- JSON-LD: WebSite (enables Google Sitelinks and brand search recognition) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "ChartAttack",
+      "url": "https://chartattack.net/",
+      "description": "AI-powered trading chart analysis tool. Turn any chart screenshot into a complete trade plan with entry, stop loss, and take-profit levels.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://chartattack.net/analyze"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- JSON-LD: SoftwareApplication -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "SoftwareApplication",
       "name": "ChartAttack",
+      "alternateName": ["ChartAttack AI", "Chart Attack trading tool"],
       "url": "https://chartattack.net/",
-      "description": "AI-powered trade plan generator for beginner traders. Upload any chart screenshot and instantly receive entry, stop loss, and take-profit levels with risk/reward ratios and educational explanations.",
+      "description": "ChartAttack is a free AI-powered trade plan generator for beginner traders. Upload any trading chart screenshot from TradingView, MT4, or MT5 and instantly receive a structured trade plan with entry price, stop loss, TP1, TP2, TP3 take-profit levels, and risk/reward ratios with educational explanations.",
       "applicationCategory": "FinanceApplication",
-      "operatingSystem": "Web",
+      "applicationSubCategory": "Trading Tool",
+      "operatingSystem": "Web Browser",
+      "browserRequirements": "Any modern browser",
+      "inLanguage": "en",
       "offers": {
         "@type": "Offer",
         "price": "0",
-        "priceCurrency": "USD"
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
       },
       "featureList": [
         "AI chart analysis from screenshot",
-        "Entry price detection",
+        "Entry price level detection",
         "Stop loss calculation",
         "Take profit levels TP1 TP2 TP3",
-        "Risk reward ratio",
-        "Educational trade explanations",
-        "Supports TradingView MT4 MT5 charts",
-        "Analysis history saved per user"
+        "Risk reward ratio calculation",
+        "Educational trade plan explanations",
+        "Supports TradingView MT4 MT5 screenshots",
+        "Analysis history per user account",
+        "Free to use"
       ],
       "audience": {
         "@type": "Audience",
-        "audienceType": "Beginner traders, retail forex traders, stock market beginners"
+        "audienceType": "Beginner traders, retail forex traders, stock market beginners, cryptocurrency traders"
+      },
+      "provider": {
+        "@type": "Organization",
+        "name": "ChartAttack",
+        "url": "https://chartattack.net/"
       }
     }
     </script>
 
-    <!-- JSON-LD Structured Data: FAQPage (boosts AI citation and featured snippets) -->
+    <!-- JSON-LD: FAQPage (featured snippets + AI citation) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -76,7 +126,7 @@
           "name": "What is ChartAttack?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "ChartAttack is a free AI-powered tool that analyzes trading chart screenshots and generates a complete trade plan including entry price, stop loss, and TP1/TP2/TP3 take-profit levels with risk/reward ratios, designed for beginner traders."
+            "text": "ChartAttack is a free AI-powered trading tool that analyzes chart screenshots and generates a complete trade plan including entry price, stop loss, and TP1/TP2/TP3 take-profit levels with risk/reward ratios. It is designed for beginner and intermediate traders."
           }
         },
         {
@@ -92,7 +142,7 @@
           "name": "How does ChartAttack generate a trade plan?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "You upload a screenshot of any trading chart. ChartAttack's AI vision model analyzes the chart, identifies key price levels, support and resistance zones, and trend direction, then outputs a structured trade plan with entry, stop loss, and multiple take-profit targets."
+            "text": "You upload a screenshot of any trading chart to ChartAttack. The AI vision model analyzes the chart, identifies key price levels, support and resistance zones, and trend direction, then outputs a structured trade plan with entry, stop loss, and multiple take-profit targets."
           }
         },
         {
@@ -100,15 +150,23 @@
           "name": "Is ChartAttack free to use?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes, ChartAttack is free. Sign up with email or Google to save your analysis history."
+            "text": "Yes, ChartAttack is free. Sign up with your email or Google account to save and review your analysis history."
           }
         },
         {
           "@type": "Question",
-          "name": "What is risk/reward ratio in trading?",
+          "name": "What is a risk/reward ratio in trading?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Risk/reward ratio compares the potential loss (distance from entry to stop loss) with the potential gain (distance from entry to take profit). A 1:2 ratio means you risk 1 unit to potentially gain 2. ChartAttack calculates this automatically for each trade plan."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Do I need trading experience to use ChartAttack?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. ChartAttack is specifically designed for beginner traders. Each trade plan includes plain-English educational explanations of why the setup makes sense, helping you learn as you trade."
           }
         }
       ]
@@ -121,7 +179,45 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Static fallback for search engine crawlers that don't execute JavaScript.
+           This content is immediately visible to all bots and is replaced by React once loaded. -->
+      <noscript>
+        <main style="font-family:Inter,sans-serif;max-width:800px;margin:0 auto;padding:40px 20px;">
+          <h1>ChartAttack — AI Trade Plan from Any Chart Screenshot</h1>
+          <p>Tired of endless analysis? ChartAttack is a free AI-powered tool that turns any trading chart screenshot into an instant, structured trade plan. Just upload your chart and get entry price, stop loss, TP1, TP2, and TP3 take-profit levels with risk/reward ratios in seconds.</p>
+
+          <h2>How ChartAttack works</h2>
+          <ol>
+            <li><strong>Import:</strong> Upload a screenshot of any chart from TradingView, MT4, MT5, or your broker platform.</li>
+            <li><strong>Analyze:</strong> ChartAttack's AI identifies key price levels, support and resistance, and trend direction.</li>
+            <li><strong>Understand:</strong> Receive a full trade plan with entry, stop loss, three take-profit targets, and plain-English educational explanations.</li>
+          </ol>
+
+          <h2>Features</h2>
+          <ul>
+            <li>AI-generated entry price, stop loss, TP1, TP2, TP3</li>
+            <li>Risk/reward ratio for each target</li>
+            <li>Educational explanations for beginner traders</li>
+            <li>Supports TradingView, MT4, MT5 chart screenshots</li>
+            <li>Personal analysis history saved to your account</li>
+            <li>Free to use — sign up with email or Google</li>
+          </ul>
+
+          <h2>Frequently Asked Questions</h2>
+          <h3>What is ChartAttack?</h3>
+          <p>ChartAttack is a free AI trading tool that analyzes chart screenshots and generates complete trade plans for beginner and intermediate traders.</p>
+
+          <h3>Is ChartAttack free?</h3>
+          <p>Yes. ChartAttack is completely free. Create an account with your email or Google to save your analysis history.</p>
+
+          <h3>Which chart platforms are supported?</h3>
+          <p>Any chart screenshot works — TradingView, MetaTrader 4 (MT4), MetaTrader 5 (MT5), and broker platforms.</p>
+
+          <p><a href="https://chartattack.net/analyze">Start analyzing your charts now</a></p>
+        </main>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
