@@ -19,7 +19,7 @@ export default function Home() {
         </div>
         
         <p className="text-xl md:text-2xl text-slate-600 dark:text-slate-400 max-w-2xl mb-10">
-          The calm, precise trading coach for beginners. Turn any chart screenshot into a clear, educational trade plan.
+          Tired of endless analysis? Just bite your trading instantly!
         </p>
         
         <Link href="/analyze">
