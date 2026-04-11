@@ -55,7 +55,7 @@ export function ResultsPanel() {
 
     const dataUrl = bgCanvas.toDataURL('image/png');
     const link = document.createElement('a');
-    link.download = `ChartSense-${currentPlan.context || 'Plan'}-${Date.now()}.png`;
+    link.download = `ChartAttack-${currentPlan.context || 'Plan'}-${Date.now()}.png`;
     link.href = dataUrl;
     link.click();
   };

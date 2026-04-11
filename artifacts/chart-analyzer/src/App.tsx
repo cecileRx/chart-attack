@@ -108,13 +108,13 @@ function ClerkProviderWithRoutes() {
       localization={{
         signIn: {
           start: {
-            title: "Sign in to ChartSense",
+            title: "Sign in to ChartAttack",
             subtitle: "Welcome back! Please sign in to continue.",
           },
         },
         signUp: {
           start: {
-            title: "Sign up for ChartSense",
+            title: "Sign up for ChartAttack",
             subtitle: "Create your free account to get started.",
           },
         },
@@ -141,7 +141,7 @@ function ClerkProviderWithRoutes() {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="dark" storageKey="chartsense-theme">
+    <ThemeProvider defaultTheme="dark" storageKey="chartattack-theme">
       <WouterRouter base={basePath}>
         <ClerkProviderWithRoutes />
       </WouterRouter>

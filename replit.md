@@ -28,7 +28,7 @@ See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and pa
 
 ## Artifacts
 
-### ChartSense — Educational Chart Analysis Assistant (`artifacts/chart-analyzer`)
+### ChartAttack — Educational Chart Analysis Assistant (`artifacts/chart-analyzer`)
 - **Route**: `/` (root)
 - **Type**: react-vite, frontend-only (no backend needed)
 - **Purpose**: Educational tool for beginner traders. Import a chart image, receive a simulated trade plan with entry, SL, TP1/TP2/TP3, RR ratio, and educational commentary. Canvas overlay draws visual annotations. Manual mode allows adjusting levels. Session history stored in localStorage.

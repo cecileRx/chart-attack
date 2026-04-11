@@ -153,7 +153,7 @@ function SignedOutPrompt() {
       <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
         <Lock className="w-8 h-8" />
       </div>
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sign in to ChartSense to view your history</h2>
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sign in to ChartAttack to view your history</h2>
       <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md">
         Your analysis history is private and tied to your account. Sign in to access all your previous chart analyses.
       </p>
