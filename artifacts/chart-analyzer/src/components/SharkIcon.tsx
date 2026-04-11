@@ -13,39 +13,47 @@ export function SharkIcon({ className }: SharkIconProps) {
       className={className}
       aria-label="ChartAttack shark logo"
     >
-      {/* ── Upper jaw arc ── */}
+      {/* ─── UPPER JAW — thick arc at the top ─── */}
       <path
-        d="M8 30 C8 16 22 8 40 8 C58 8 72 16 72 30"
+        d="M6 22 C6 10 22 2 40 2 C58 2 74 10 74 22 L74 26 C74 14 58 6 40 6 C22 6 6 14 6 26 Z"
         fill="currentColor"
+      />
+      {/* Upper jaw solid block */}
+      <path
+        d="M6 22 C6 10 22 2 40 2 C58 2 74 10 74 22"
+        stroke="currentColor"
+        strokeWidth="10"
         strokeLinecap="round"
+        fill="none"
       />
 
-      {/* ── Lower jaw arc ── */}
-      <path
-        d="M8 50 C8 64 22 72 40 72 C58 72 72 64 72 50"
-        fill="currentColor"
-        strokeLinecap="round"
-      />
-
-      {/* ── Dark throat / inner mouth ── */}
-      <ellipse cx="40" cy="40" rx="32" ry="12" fill="#04111f" />
-
-      {/* ── Upper teeth (pointing down into the mouth) ── */}
+      {/* ─── UPPER TEETH — long triangles pointing DOWN from upper jaw ─── */}
       <g fill="white">
-        <polygon points="18,30  25,30  21.5,46" />
-        <polygon points="27,28  34,28  30.5,45" />
-        <polygon points="36,27  44,27  40,45" />
-        <polygon points="46,28  53,28  49.5,45" />
-        <polygon points="55,30  62,30  58.5,46" />
+        <polygon points="11,26  19,26  15,42" />
+        <polygon points="21,24  29,24  25,41" />
+        <polygon points="32,22  40,22  36,40" />
+        <polygon points="40,22  48,22  44,40" />
+        <polygon points="51,24  59,24  55,41" />
+        <polygon points="61,26  69,26  65,42" />
       </g>
 
-      {/* ── Lower teeth (pointing up into the mouth) ── */}
+      {/* ─── LOWER JAW — thick arc at the bottom ─── */}
+      <path
+        d="M6 58 C6 70 22 78 40 78 C58 78 74 70 74 58"
+        stroke="currentColor"
+        strokeWidth="10"
+        strokeLinecap="round"
+        fill="none"
+      />
+
+      {/* ─── LOWER TEETH — long triangles pointing UP from lower jaw ─── */}
       <g fill="white">
-        <polygon points="18,50  25,50  21.5,34" />
-        <polygon points="27,52  34,52  30.5,35" />
-        <polygon points="36,53  44,53  40,35" />
-        <polygon points="46,52  53,52  49.5,35" />
-        <polygon points="55,50  62,50  58.5,34" />
+        <polygon points="11,54  19,54  15,38" />
+        <polygon points="21,56  29,56  25,39" />
+        <polygon points="32,58  40,58  36,40" />
+        <polygon points="40,58  48,58  44,40" />
+        <polygon points="51,56  59,56  55,39" />
+        <polygon points="61,54  69,54  65,38" />
       </g>
     </svg>
   );

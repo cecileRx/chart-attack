@@ -11,7 +11,7 @@ export default function Home() {
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 text-center pt-24 pb-16">
         <div className="mb-6 inline-flex items-center justify-center p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
-          <SharkIcon className="w-8 h-8" />
+          <SharkIcon className="w-16 h-16" />
         </div>
         
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 text-slate-900 dark:text-white">
