@@ -13,47 +13,42 @@ export function SharkIcon({ className }: SharkIconProps) {
       className={className}
       aria-label="ChartAttack shark logo"
     >
-      {/* ─── UPPER JAW — thick arc at the top ─── */}
+      {/* ─── UPPER JAW — smooth rounded crescent arc ─── */}
       <path
-        d="M6 22 C6 10 22 2 40 2 C58 2 74 10 74 22 L74 26 C74 14 58 6 40 6 C22 6 6 14 6 26 Z"
-        fill="currentColor"
-      />
-      {/* Upper jaw solid block */}
-      <path
-        d="M6 22 C6 10 22 2 40 2 C58 2 74 10 74 22"
+        d="M8 28 C8 12 22 4 40 4 C58 4 72 12 72 28"
         stroke="currentColor"
-        strokeWidth="10"
+        strokeWidth="12"
         strokeLinecap="round"
         fill="none"
       />
 
-      {/* ─── UPPER TEETH — long triangles pointing DOWN from upper jaw ─── */}
+      {/* ─── UPPER TEETH — sharp triangles pointing down ─── */}
       <g fill="white">
-        <polygon points="11,26  19,26  15,42" />
-        <polygon points="21,24  29,24  25,41" />
-        <polygon points="32,22  40,22  36,40" />
-        <polygon points="40,22  48,22  44,40" />
-        <polygon points="51,24  59,24  55,41" />
-        <polygon points="61,26  69,26  65,42" />
+        <polygon points="11,27  18,27  14.5,43" />
+        <polygon points="21,24  28,24  24.5,41" />
+        <polygon points="33,22  40,22  36.5,40" />
+        <polygon points="40,22  47,22  43.5,40" />
+        <polygon points="52,24  59,24  55.5,41" />
+        <polygon points="62,27  69,27  65.5,43" />
       </g>
 
-      {/* ─── LOWER JAW — thick arc at the bottom ─── */}
+      {/* ─── LOWER JAW — smooth rounded crescent arc ─── */}
       <path
-        d="M6 58 C6 70 22 78 40 78 C58 78 74 70 74 58"
+        d="M8 52 C8 68 22 76 40 76 C58 76 72 68 72 52"
         stroke="currentColor"
-        strokeWidth="10"
+        strokeWidth="12"
         strokeLinecap="round"
         fill="none"
       />
 
-      {/* ─── LOWER TEETH — long triangles pointing UP from lower jaw ─── */}
+      {/* ─── LOWER TEETH — sharp triangles pointing up ─── */}
       <g fill="white">
-        <polygon points="11,54  19,54  15,38" />
-        <polygon points="21,56  29,56  25,39" />
-        <polygon points="32,58  40,58  36,40" />
-        <polygon points="40,58  48,58  44,40" />
-        <polygon points="51,56  59,56  55,39" />
-        <polygon points="61,54  69,54  65,38" />
+        <polygon points="11,53  18,53  14.5,37" />
+        <polygon points="21,56  28,56  24.5,39" />
+        <polygon points="33,58  40,58  36.5,40" />
+        <polygon points="40,58  47,58  43.5,40" />
+        <polygon points="52,56  59,56  55.5,39" />
+        <polygon points="62,53  69,53  65.5,37" />
       </g>
     </svg>
   );
