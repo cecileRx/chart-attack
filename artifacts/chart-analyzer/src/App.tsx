@@ -16,8 +16,25 @@ import Analyze from "@/pages/Analyze";
 import History from "@/pages/History";
 
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// Compute the Clerk proxy URL dynamically so it works on both the Replit
+// preview domain and any custom production domain (e.g. chartattack.net)
+// without requiring a build-time env var.
+// The proxy backend middleware is active only in production (NODE_ENV=production),
+// so skip the proxy on local/Replit-dev origins where it would be a no-op.
+const clerkProxyUrl = (() => {
+  if (import.meta.env.VITE_CLERK_PROXY_URL) return import.meta.env.VITE_CLERK_PROXY_URL;
+  if (typeof window === "undefined") return undefined;
+  const host = window.location.hostname;
+  // Skip proxy for localhost and Replit dev-preview (*.worf.repl.co, *.replit.dev)
+  const isDevHost =
+    host === "localhost" ||
+    host.includes(".worf.repl.co") ||
+    host.includes(".replit.dev") ||
+    host.includes(".janeway.replit.dev");
+  return isDevHost ? undefined : `${window.location.origin}/api/__clerk`;
+})();
 
 if (!clerkPubKey) {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
