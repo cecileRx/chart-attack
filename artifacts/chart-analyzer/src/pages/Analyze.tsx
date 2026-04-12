@@ -4,9 +4,11 @@ import { ChartCanvas } from '../components/ChartCanvas';
 import { ResultsPanel } from '../components/ResultsPanel';
 import { ManualLevelsPanel } from '../components/ManualLevelsPanel';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, Lightbulb, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, Lightbulb, AlertCircle, Plus, X, Star } from 'lucide-react';
 import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
 import { useAnalyzeChartImage } from '@workspace/api-client-react';
+
+const TIMEFRAME_OPTIONS = ['1M', '5M', '15M', '30M', '1H', '4H', 'Daily', 'Weekly', 'Monthly'];
 
 const TIPS = [
   "Never risk more than 1-2% of your capital on a single trade.",
@@ -29,12 +31,15 @@ export default function Analyze() {
     currentPlan, setCurrentPlan,
     isAnalyzing, setIsAnalyzing,
     analysisMode,
+    additionalCharts, setAdditionalCharts,
   } = useApp();
 
   const [dragActive, setDragActive] = useState(false);
   const [tipIndex, setTipIndex] = useState(0);
   const [loadingStep, setLoadingStep] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [primaryTimeframe, setPrimaryTimeframe] = useState('');
+  const [primaryTimeframeCustom, setPrimaryTimeframeCustom] = useState('');
 
   const analyzeChartMutation = useAnalyzeChartImage({
     mutation: {
@@ -62,6 +67,9 @@ export default function Analyze() {
       setCurrentImage(dataUrl);
       setCurrentPlan(null);
       setApiError(null);
+      setAdditionalCharts([]);
+      setPrimaryTimeframe('');
+      setPrimaryTimeframeCustom('');
     };
     reader.readAsDataURL(file);
   };
@@ -78,6 +86,38 @@ export default function Analyze() {
     if (e.target.files && e.target.files[0]) {
       handleImage(e.target.files[0]);
     }
+  };
+
+  const handleAddAdditionalChart = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target?.result as string;
+      setAdditionalCharts(prev => [...prev, { imageDataUrl: dataUrl, timeframe: '' }]);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleAdditionalFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleAddAdditionalChart(e.target.files[0]);
+    }
+    e.target.value = '';
+  };
+
+  const removeAdditionalChart = (index: number) => {
+    setAdditionalCharts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAdditionalChartTimeframe = (index: number, timeframe: string) => {
+    setAdditionalCharts(prev =>
+      prev.map((chart, i) => i === index ? { ...chart, timeframe } : chart)
+    );
+  };
+
+  const getEffectivePrimaryTimeframe = () => {
+    if (primaryTimeframe === '__custom__') return primaryTimeframeCustom.trim();
+    return primaryTimeframe;
   };
 
   const runAnalysis = () => {
@@ -99,8 +139,22 @@ export default function Analyze() {
       }
     }, 900);
 
+    const effectivePrimaryTf = getEffectivePrimaryTimeframe();
+
+    // Send all additional charts — server uses "Unknown" as fallback for missing timeframe
+    const additionalImages = additionalCharts.map(c => ({
+      imageDataUrl: c.imageDataUrl,
+      timeframe: c.timeframe.trim() || 'Unknown',
+    }));
+
     analyzeChartMutation.mutate(
-      { data: { imageDataUrl: currentImage } },
+      {
+        data: {
+          imageDataUrl: currentImage,
+          ...(effectivePrimaryTf ? { primaryTimeframe: effectivePrimaryTf } : {}),
+          ...(additionalImages.length > 0 ? { additionalImages } : {}),
+        },
+      },
       {
         onSettled: () => clearInterval(interval),
       },
@@ -164,7 +218,7 @@ export default function Analyze() {
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                       data-testid="button-analyze"
                     >
-                      Analyze Chart
+                      Analyze Chart{additionalCharts.length > 0 ? ` (${additionalCharts.length + 1} charts)` : ''}
                     </Button>
                   )}
                   <label
@@ -182,6 +236,103 @@ export default function Analyze() {
                   </label>
                 </div>
               </div>
+
+              {/* Multi-timeframe thumbnail strip */}
+              {!currentPlan && (
+                <div className="mb-4 flex flex-wrap items-start gap-3">
+                  {/* Primary chart thumbnail */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="relative w-24 h-16 rounded-lg overflow-hidden border-2 border-blue-500 shadow-sm">
+                      <img src={currentImage} alt="Primary chart" className="w-full h-full object-cover" />
+                      <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-blue-600 text-white text-[10px] font-bold px-1 py-0.5 rounded">
+                        <Star className="w-2.5 h-2.5" />
+                        Primary
+                      </div>
+                      {getEffectivePrimaryTimeframe() && (
+                        <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-semibold px-1 py-0.5 rounded">
+                          {getEffectivePrimaryTimeframe()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-1 items-center">
+                      <select
+                        value={primaryTimeframeCustom ? '__custom__' : primaryTimeframe}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setPrimaryTimeframe('__custom__');
+                            setPrimaryTimeframeCustom('');
+                          } else {
+                            setPrimaryTimeframe(e.target.value);
+                            setPrimaryTimeframeCustom('');
+                          }
+                        }}
+                        className="text-[11px] border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-20"
+                      >
+                        <option value="">TF...</option>
+                        {TIMEFRAME_OPTIONS.map(tf => (
+                          <option key={tf} value={tf}>{tf}</option>
+                        ))}
+                        <option value="__custom__">Custom...</option>
+                      </select>
+                      {primaryTimeframe === '__custom__' && (
+                        <input
+                          type="text"
+                          placeholder="e.g. 2H"
+                          value={primaryTimeframeCustom}
+                          onChange={(e) => setPrimaryTimeframeCustom(e.target.value)}
+                          className="text-[11px] border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-14"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional chart thumbnails */}
+                  {additionalCharts.map((chart, idx) => (
+                    <div key={idx} className="flex flex-col items-center gap-1.5" data-testid={`additional-chart-${idx}`}>
+                      <div className="relative w-24 h-16 rounded-lg overflow-hidden border-2 border-slate-300 dark:border-slate-600 shadow-sm">
+                        <img src={chart.imageDataUrl} alt={`Chart ${idx + 2}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => removeAdditionalChart(idx)}
+                          className="absolute top-0.5 right-0.5 w-4 h-4 bg-rose-500 text-white rounded-full flex items-center justify-center hover:bg-rose-600"
+                          data-testid={`remove-chart-${idx}`}
+                        >
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                        {chart.timeframe && (
+                          <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] font-semibold px-1 py-0.5 rounded">
+                            {chart.timeframe}
+                          </div>
+                        )}
+                      </div>
+                      <TimeframeSelector
+                        value={chart.timeframe}
+                        onChange={(tf) => updateAdditionalChartTimeframe(idx, tf)}
+                      />
+                    </div>
+                  ))}
+
+                  {/* Add another timeframe button */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <label
+                      htmlFor="add-chart-upload"
+                      className="w-24 h-16 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors"
+                      data-testid="add-chart-button"
+                    >
+                      <Plus className="w-5 h-5 text-slate-400" />
+                      <span className="text-[10px] text-slate-400 mt-0.5 text-center leading-tight px-1">Add timeframe</span>
+                    </label>
+                    <input
+                      id="add-chart-upload"
+                      type="file"
+                      accept="image/png,image/jpg,image/jpeg,image/webp"
+                      className="hidden"
+                      onChange={handleAdditionalFileInput}
+                      data-testid="input-add-chart"
+                    />
+                    <div className="w-20 h-5" />
+                  </div>
+                </div>
+              )}
 
               {isAnalyzing ? (
                 <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 dark:bg-slate-800/50 rounded-xl min-h-[400px] gap-6">
@@ -252,10 +403,62 @@ export default function Analyze() {
                 <p className="text-slate-500 dark:text-slate-400 text-sm">
                   Click "Analyze Chart" to let the AI read the chart and generate a trade plan automatically.
                 </p>
+                {additionalCharts.length > 0 && (
+                  <p className="text-xs text-blue-500 dark:text-blue-400">
+                    {additionalCharts.length} additional timeframe{additionalCharts.length > 1 ? 's' : ''} added — the AI will cross-reference all charts.
+                  </p>
+                )}
               </div>
             ) : null}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function TimeframeSelector({ value, onChange }: { value: string; onChange: (tf: string) => void }) {
+  const [isCustom, setIsCustom] = useState(!TIMEFRAME_OPTIONS.includes(value) && value !== '');
+  const [customVal, setCustomVal] = useState(isCustom ? value : '');
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (e.target.value === '__custom__') {
+      setIsCustom(true);
+      setCustomVal('');
+      onChange('');
+    } else {
+      setIsCustom(false);
+      setCustomVal('');
+      onChange(e.target.value);
+    }
+  };
+
+  const handleCustomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomVal(e.target.value);
+    onChange(e.target.value);
+  };
+
+  return (
+    <div className="flex gap-1 items-center">
+      <select
+        value={isCustom ? '__custom__' : value}
+        onChange={handleSelectChange}
+        className="text-[11px] border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-20"
+      >
+        <option value="">TF...</option>
+        {TIMEFRAME_OPTIONS.map(tf => (
+          <option key={tf} value={tf}>{tf}</option>
+        ))}
+        <option value="__custom__">Custom...</option>
+      </select>
+      {isCustom && (
+        <input
+          type="text"
+          placeholder="e.g. 2H"
+          value={customVal}
+          onChange={handleCustomChange}
+          className="text-[11px] border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 w-14"
+        />
       )}
     </div>
   );

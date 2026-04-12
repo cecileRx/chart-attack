@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState } from 'react';
 import { TradePlan } from '@/lib/analyzeChart';
 
+export interface AdditionalChart {
+  imageDataUrl: string;
+  timeframe: string;
+}
+
 interface AppContextType {
   currentPlan: TradePlan | null;
   setCurrentPlan: React.Dispatch<React.SetStateAction<TradePlan | null>>;
@@ -10,6 +15,10 @@ interface AppContextType {
   setAnalysisMode: React.Dispatch<React.SetStateAction<'auto' | 'manual'>>;
   isAnalyzing: boolean;
   setIsAnalyzing: React.Dispatch<React.SetStateAction<boolean>>;
+  additionalCharts: AdditionalChart[];
+  setAdditionalCharts: React.Dispatch<React.SetStateAction<AdditionalChart[]>>;
+  primaryChartIndex: number;
+  setPrimaryChartIndex: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -19,6 +28,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
   const [analysisMode, setAnalysisMode] = useState<'auto' | 'manual'>('auto');
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [additionalCharts, setAdditionalCharts] = useState<AdditionalChart[]>([]);
+  const [primaryChartIndex, setPrimaryChartIndex] = useState<number>(0);
 
   return (
     <AppContext.Provider
@@ -31,6 +42,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAnalysisMode,
         isAnalyzing,
         setIsAnalyzing,
+        additionalCharts,
+        setAdditionalCharts,
+        primaryChartIndex,
+        setPrimaryChartIndex,
       }}
     >
       {children}

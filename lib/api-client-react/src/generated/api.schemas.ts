@@ -9,9 +9,20 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface AdditionalChartImage {
+  /** Base64 data URL of the additional chart image */
+  imageDataUrl: string;
+  /** Timeframe label for this chart (e.g. 1H, 4H, Daily) */
+  timeframe: string;
+}
+
 export interface AnalyzeChartRequest {
   /** Base64 data URL of the chart image */
   imageDataUrl: string;
+  /** Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily) */
+  primaryTimeframe?: string;
+  /** Optional additional chart images for multi-timeframe analysis */
+  additionalImages?: AdditionalChartImage[];
 }
 
 export type ChartAnalysisResultDirection =
@@ -57,6 +68,8 @@ export interface ChartAnalysisResult {
   explanation: string;
   setupQuality: string;
   keyLevels: string;
+  /** Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed) */
+  multiTimeframeContext?: string;
 }
 
 export type HistoryEntryDirection =

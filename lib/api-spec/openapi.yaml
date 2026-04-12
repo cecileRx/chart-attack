@@ -124,12 +124,32 @@ components:
           type: string
       required:
         - status
+    AdditionalChartImage:
+      type: object
+      properties:
+        imageDataUrl:
+          type: string
+          description: Base64 data URL of the additional chart image
+        timeframe:
+          type: string
+          description: Timeframe label for this chart (e.g. 1H, 4H, Daily)
+      required:
+        - imageDataUrl
+        - timeframe
     AnalyzeChartRequest:
       type: object
       properties:
         imageDataUrl:
           type: string
           description: Base64 data URL of the chart image
+        primaryTimeframe:
+          type: string
+          description: Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily)
+        additionalImages:
+          type: array
+          description: Optional additional chart images for multi-timeframe analysis
+          items:
+            $ref: "#/components/schemas/AdditionalChartImage"
       required:
         - imageDataUrl
     ChartAnalysisResult:
@@ -176,6 +196,9 @@ components:
           type: string
         keyLevels:
           type: string
+        multiTimeframeContext:
+          type: string
+          description: Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed)
       required:
         - context
         - timeframe

@@ -4,7 +4,7 @@ import { LevelLine } from './LevelLine';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2 } from 'lucide-react';
+import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2, Layers } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -123,6 +123,17 @@ export function ResultsPanel() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+        {/* Multi-timeframe context (shown when multiple charts were analysed) */}
+        {currentPlan.multiTimeframeContext && (
+          <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/40 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Layers className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              <h3 className="text-xs font-semibold text-violet-700 dark:text-violet-300 uppercase tracking-wider">Multi-Timeframe Context</h3>
+            </div>
+            <p className="text-sm text-violet-800 dark:text-violet-200 leading-relaxed">{currentPlan.multiTimeframeContext}</p>
+          </div>
+        )}
 
         {/* Trade levels */}
         <div className="space-y-3">

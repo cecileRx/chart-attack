@@ -20,6 +20,7 @@ export interface TradePlan {
   context: string;      // asset name, e.g. "EUR/USD", "BTC/USD"
   timeframe: string;    // chart timeframe, e.g. "4H", "Daily"
   keyLevels: string;    // description of key support/resistance
+  multiTimeframeContext?: string; // summary of higher-timeframe bias (multi-chart analysis)
 }
 
 export interface ManualLevels {
@@ -71,6 +72,7 @@ export function buildPlanFromAIResponse(
     explanation: string;
     setupQuality: string;
     keyLevels: string;
+    multiTimeframeContext?: string;
   },
 ): TradePlan {
   const decimals = getDecimals(ai.entry);
@@ -107,6 +109,7 @@ export function buildPlanFromAIResponse(
     context: ai.context,
     timeframe: ai.timeframe,
     keyLevels: ai.keyLevels,
+    multiTimeframeContext: ai.multiTimeframeContext,
   };
 }
 

@@ -19,8 +19,21 @@ export const HealthCheckResponse = zod.object({
  * Sends a chart image to the AI vision model and returns a structured trade plan
  * @summary Analyze a chart image using AI
  */
+export const AdditionalChartImageSchema = zod.object({
+  imageDataUrl: zod.string().describe("Base64 data URL of the additional chart image"),
+  timeframe: zod.string().describe("Timeframe label for this chart (e.g. 1H, 4H, Daily)"),
+});
+
 export const AnalyzeChartImageBody = zod.object({
   imageDataUrl: zod.string().describe("Base64 data URL of the chart image"),
+  primaryTimeframe: zod
+    .string()
+    .optional()
+    .describe("Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily)"),
+  additionalImages: zod
+    .array(AdditionalChartImageSchema)
+    .optional()
+    .describe("Optional additional chart images for multi-timeframe analysis"),
 });
 
 export const analyzeChartImageResponseConfidenceScoreMin = 0;
@@ -55,6 +68,12 @@ export const AnalyzeChartImageResponse = zod.object({
   explanation: zod.string(),
   setupQuality: zod.string(),
   keyLevels: zod.string(),
+  multiTimeframeContext: zod
+    .string()
+    .optional()
+    .describe(
+      "Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed)",
+    ),
 });
 
 /**

@@ -34,4 +34,6 @@ export interface ChartAnalysisResult {
   explanation: string;
   setupQuality: string;
   keyLevels: string;
+  /** Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed) */
+  multiTimeframeContext?: string;
 }
