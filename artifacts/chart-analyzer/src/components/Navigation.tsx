@@ -99,15 +99,24 @@ export function Navigation() {
           </Button>
 
           {isLoaded && !isSignedIn && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
-              onClick={signIn}
-            >
-              <LogIn className="w-4 h-4 mr-1.5" />
-              Sign in
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sm font-medium text-slate-700 dark:text-slate-300 hidden sm:flex"
+                onClick={signIn}
+              >
+                <LogIn className="w-4 h-4 mr-1.5" />
+                Sign in
+              </Button>
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium"
+                onClick={signIn}
+              >
+                Sign up
+              </Button>
+            </div>
           )}
 
           {isLoaded && isSignedIn && <UserMenu />}
