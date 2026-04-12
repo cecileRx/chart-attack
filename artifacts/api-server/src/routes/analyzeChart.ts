@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { openai } from "@workspace/integrations-openai-ai-server";
+import { getAuth } from "@clerk/express";
 import { db, analysesTable } from "@workspace/db";
 import { randomBytes } from "crypto";
 
@@ -199,7 +200,8 @@ router.post("/", async (req, res) => {
   }
 
   // If user is authenticated, persist the analysis
-  const userId = req.session.user?.id;
+  const auth = getAuth(req);
+  const userId = auth?.userId;
 
   if (userId) {
     try {

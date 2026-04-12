@@ -1,16 +1,12 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import { clerkMiddleware } from "@clerk/express";
+import { CLERK_PROXY_PATH, clerkProxyMiddleware } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
-const PgStore = connectPgSimple(session);
-
 const app: Express = express();
-
-app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -32,28 +28,14 @@ app.use(
   }),
 );
 
+// Clerk proxy must come before body parsers (streams raw bytes)
+app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json({ limit: "20mb" }));
 app.use(express.urlencoded({ extended: true, limit: "20mb" }));
 
-app.use(
-  session({
-    store: new PgStore({
-      conString: process.env.DATABASE_URL,
-      tableName: "user_sessions",
-      createTableIfMissing: true,
-    }),
-    secret: process.env.SESSION_SECRET!,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      sameSite: "lax",
-    },
-  }),
-);
+app.use(clerkMiddleware());
 
 app.use("/api", router);
 
