@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/accordion";
 import { addToHistory } from '@/lib/sessionHistory';
 import { PnLCalculator } from './PnLCalculator';
-import { useUser, SignInButton } from '@clerk/react';
+import { useAuth } from '@/context/AuthContext';
 
 export function ResultsPanel() {
   const { currentPlan, setAnalysisMode, setCurrentPlan, setCurrentImage } = useApp();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, signIn } = useAuth();
 
   if (!currentPlan) return null;
 
@@ -186,11 +186,9 @@ export function ResultsPanel() {
                       Calculate your exact profit and loss in dollars for each take-profit target and stop loss level, based on the number of lots you plan to trade.
                     </p>
                   </div>
-                  <SignInButton mode="modal">
-                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white mt-1">
-                      Sign in to calculate
-                    </Button>
-                  </SignInButton>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white mt-1" onClick={signIn}>
+                    Sign in to calculate
+                  </Button>
                 </div>
               )}
             </AccordionContent>

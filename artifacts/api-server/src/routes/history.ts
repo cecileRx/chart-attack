@@ -1,13 +1,11 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
 import { db, analysesTable } from "@workspace/db";
 import { eq, and, desc } from "drizzle-orm";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
-  const auth = getAuth(req);
-  const userId = auth?.userId;
+  const userId = req.session.user?.id;
 
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });
@@ -25,8 +23,7 @@ router.get("/", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
-  const auth = getAuth(req);
-  const userId = auth?.userId;
+  const userId = req.session.user?.id;
 
   if (!userId) {
     res.status(401).json({ error: "Unauthorized" });

@@ -74,3 +74,8 @@ externalPort = 5000
 [[ports]]
 localPort = 26024
 externalPort = 8008
+
+[userenv]
+
+[userenv.shared]
+GOOGLE_REDIRECT_URI = "https://chartattack.net/api/auth/google/callback"

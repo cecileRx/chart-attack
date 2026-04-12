@@ -3,10 +3,10 @@ import { useApp } from '../components/AppContext';
 import { Button } from '@/components/ui/button';
 import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { Show } from '@clerk/react';
 import { useGetUserHistory, useDeleteHistoryEntry } from '@workspace/api-client-react';
 import type { HistoryEntry } from '@workspace/api-client-react';
 import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
+import { useAuth } from '@/context/AuthContext';
 
 function HistoryContent() {
   const { setCurrentPlan, setCurrentImage, setAnalysisMode } = useApp();
@@ -147,37 +147,33 @@ function HistoryContent() {
 }
 
 function SignedOutPrompt() {
-  const [, setLocation] = useLocation();
+  const { signIn } = useAuth();
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
       <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
         <Lock className="w-8 h-8" />
       </div>
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sign in to ChartAttack to view your history</h2>
+      <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Sign in to view your history</h2>
       <p className="text-slate-500 dark:text-slate-400 mb-6 max-w-md">
-        Your analysis history is private and tied to your account. Sign in to access all your previous chart analyses.
+        Your analysis history is private and tied to your account. Sign in with Google to access all your previous chart analyses.
       </p>
-      <div className="flex gap-3">
-        <Button onClick={() => setLocation('/sign-in')} className="bg-blue-600 hover:bg-blue-700 text-white">
-          Sign in
-        </Button>
-        <Button variant="outline" onClick={() => setLocation('/sign-up')}>
-          Create account
-        </Button>
-      </div>
+      <Button onClick={signIn} className="bg-blue-600 hover:bg-blue-700 text-white">
+        Sign in with Google
+      </Button>
     </div>
   );
 }
 
 export default function History() {
-  return (
-    <>
-      <Show when="signed-in">
-        <HistoryContent />
-      </Show>
-      <Show when="signed-out">
-        <SignedOutPrompt />
-      </Show>
-    </>
-  );
+  const { isSignedIn, isLoaded } = useAuth();
+
+  if (!isLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  return isSignedIn ? <HistoryContent /> : <SignedOutPrompt />;
 }
