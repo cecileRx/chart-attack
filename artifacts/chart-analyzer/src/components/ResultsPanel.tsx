@@ -4,7 +4,7 @@ import { LevelLine } from './LevelLine';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2, Layers } from 'lucide-react';
+import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2, Layers, Calculator } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -12,6 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { addToHistory } from '@/lib/sessionHistory';
+import { PnLCalculator } from './PnLCalculator';
 
 export function ResultsPanel() {
   const { currentPlan, setAnalysisMode, setCurrentPlan, setCurrentImage } = useApp();
@@ -147,8 +148,31 @@ export function ResultsPanel() {
           </div>
         </div>
 
-        {/* Accordion: explanation + key levels */}
-        <Accordion type="multiple" defaultValue={['explanation']}>
+        {/* Accordion: P&L calculator + explanation + key levels */}
+        <Accordion type="multiple" defaultValue={['pnl', 'explanation']}>
+          <AccordionItem value="pnl" className="border-slate-200 dark:border-slate-800">
+            <AccordionTrigger className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Calculator className="w-3.5 h-3.5" />
+                P&amp;L Calculator
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <PnLCalculator
+                entry={currentPlan.entry}
+                sl={currentPlan.sl}
+                tp1={currentPlan.tp1}
+                tp2={currentPlan.tp2}
+                tp3={currentPlan.tp3}
+                rrTp1={currentPlan.rrTp1}
+                rrTp2={currentPlan.rrTp2}
+                rrTp3={currentPlan.rrTp3}
+                direction={currentPlan.direction}
+                asset={currentPlan.context}
+              />
+            </AccordionContent>
+          </AccordionItem>
+
           <AccordionItem value="explanation" className="border-slate-200 dark:border-slate-800">
             <AccordionTrigger className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hover:no-underline">
               Why this setup?
