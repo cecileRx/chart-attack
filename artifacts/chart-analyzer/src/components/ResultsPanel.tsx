@@ -13,9 +13,11 @@ import {
 } from "@/components/ui/accordion";
 import { addToHistory } from '@/lib/sessionHistory';
 import { PnLCalculator } from './PnLCalculator';
+import { useUser, SignInButton } from '@clerk/react';
 
 export function ResultsPanel() {
   const { currentPlan, setAnalysisMode, setCurrentPlan, setCurrentImage } = useApp();
+  const { isSignedIn } = useUser();
 
   if (!currentPlan) return null;
 
@@ -158,18 +160,39 @@ export function ResultsPanel() {
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <PnLCalculator
-                entry={currentPlan.entry}
-                sl={currentPlan.sl}
-                tp1={currentPlan.tp1}
-                tp2={currentPlan.tp2}
-                tp3={currentPlan.tp3}
-                rrTp1={currentPlan.rrTp1}
-                rrTp2={currentPlan.rrTp2}
-                rrTp3={currentPlan.rrTp3}
-                direction={currentPlan.direction}
-                asset={currentPlan.context}
-              />
+              {isSignedIn ? (
+                <PnLCalculator
+                  entry={currentPlan.entry}
+                  sl={currentPlan.sl}
+                  tp1={currentPlan.tp1}
+                  tp2={currentPlan.tp2}
+                  tp3={currentPlan.tp3}
+                  rrTp1={currentPlan.rrTp1}
+                  rrTp2={currentPlan.rrTp2}
+                  rrTp3={currentPlan.rrTp3}
+                  direction={currentPlan.direction}
+                  asset={currentPlan.context}
+                />
+              ) : (
+                <div className="flex flex-col items-center text-center gap-3 py-4 px-2">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                    <Calculator className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+                      Sign in to unlock the P&amp;L Calculator
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs">
+                      Calculate your exact profit and loss in dollars for each take-profit target and stop loss level, based on the number of lots you plan to trade.
+                    </p>
+                  </div>
+                  <SignInButton mode="modal">
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white mt-1">
+                      Sign in to calculate
+                    </Button>
+                  </SignInButton>
+                </div>
+              )}
             </AccordionContent>
           </AccordionItem>
 
