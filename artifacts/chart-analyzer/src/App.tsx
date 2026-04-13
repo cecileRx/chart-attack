@@ -18,16 +18,17 @@ import History from "@/pages/History";
 const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// Compute the Clerk proxy URL dynamically so it works on both the Replit
-// preview domain and any custom production domain (e.g. chartattack.net)
-// without requiring a build-time env var.
-// The proxy backend middleware is active only in production (NODE_ENV=production),
-// so skip the proxy on local/Replit-dev origins where it would be a no-op.
+// Clerk proxy is ONLY supported by production Clerk instances (pk_live_).
+// Dev instances (pk_test_) reject proxied requests and break auth entirely.
+// Only activate the proxy when an explicit env var is set OR when the
+// publishable key is a production key and we are on a non-dev host.
 const clerkProxyUrl = (() => {
   if (import.meta.env.VITE_CLERK_PROXY_URL) return import.meta.env.VITE_CLERK_PROXY_URL;
+  // Dev instance → never proxy
+  if (!clerkPubKey?.startsWith("pk_live_")) return undefined;
   if (typeof window === "undefined") return undefined;
   const host = window.location.hostname;
-  // Skip proxy for localhost and Replit dev-preview (*.worf.repl.co, *.replit.dev)
+  // Skip proxy for localhost and Replit dev-preview hosts
   const isDevHost =
     host === "localhost" ||
     host.includes(".worf.repl.co") ||

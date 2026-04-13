@@ -26,13 +26,16 @@ const CLERK_FAPI = "https://frontend-api.clerk.dev";
 export const CLERK_PROXY_PATH = "/api/__clerk";
 
 export function clerkProxyMiddleware(): RequestHandler {
-  // Only run proxy in production — Clerk proxying doesn't work for dev instances
-  if (process.env.NODE_ENV !== "production") {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+
+  // Only proxy for Clerk production instances (sk_live_).
+  // Dev instances (sk_test_) reject proxied requests, so skip the proxy entirely
+  // for dev keys regardless of NODE_ENV.
+  if (!secretKey?.startsWith("sk_live_")) {
     return (_req, _res, next) => next();
   }
 
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) {
+  if (process.env.NODE_ENV !== "production") {
     return (_req, _res, next) => next();
   }
 
