@@ -1,12 +1,90 @@
 import React from 'react';
 import { useApp } from '../components/AppContext';
 import { Button } from '@/components/ui/button';
-import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock } from 'lucide-react';
+import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock, Trophy, Target } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Show } from '@clerk/react';
-import { useGetUserHistory, useDeleteHistoryEntry } from '@workspace/api-client-react';
+import { useGetUserHistory, useDeleteHistoryEntry, useUpdateHistoryOutcome } from '@workspace/api-client-react';
 import type { HistoryEntry } from '@workspace/api-client-react';
 import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
+
+function WinRateBanner({ entries }: { entries: HistoryEntry[] }) {
+  const graded = entries.filter((e) => e.outcome === 'profit' || e.outcome === 'loss');
+  const profits = graded.filter((e) => e.outcome === 'profit').length;
+  const losses = graded.filter((e) => e.outcome === 'loss').length;
+  const winRate = graded.length > 0 ? Math.round((profits / graded.length) * 100) : null;
+
+  if (entries.length === 0) return null;
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+        <div className="text-2xl font-bold text-slate-900 dark:text-white">{entries.length}</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Analyses</div>
+      </div>
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{profits}</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Profitable</div>
+      </div>
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+        <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{losses}</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Loss</div>
+      </div>
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+        {winRate !== null ? (
+          <>
+            <div className={`text-2xl font-bold ${winRate >= 50 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+              {winRate}%
+            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Win Rate</div>
+          </>
+        ) : (
+          <>
+            <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">—</div>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Win Rate</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OutcomeButtons({ entry, onUpdate }: { entry: HistoryEntry; onUpdate: (id: string, outcome: 'profit' | 'loss' | null) => void }) {
+  const isPending = false;
+
+  const toggle = (value: 'profit' | 'loss') => {
+    onUpdate(entry.id, entry.outcome === value ? null : value);
+  };
+
+  return (
+    <div className="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+      <button
+        onClick={() => toggle('profit')}
+        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors border ${
+          entry.outcome === 'profit'
+            ? 'bg-emerald-500 border-emerald-500 text-white'
+            : 'border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+        }`}
+        title="Mark as profit"
+      >
+        <Trophy className="w-3 h-3" />
+        Profit
+      </button>
+      <button
+        onClick={() => toggle('loss')}
+        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors border ${
+          entry.outcome === 'loss'
+            ? 'bg-rose-500 border-rose-500 text-white'
+            : 'border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+        }`}
+        title="Mark as loss"
+      >
+        <Target className="w-3 h-3" />
+        Loss
+      </button>
+    </div>
+  );
+}
 
 function HistoryContent() {
   const { setCurrentPlan, setCurrentImage, setAnalysisMode } = useApp();
@@ -14,6 +92,7 @@ function HistoryContent() {
 
   const { data: entries = [], isLoading, refetch } = useGetUserHistory();
   const deleteMutation = useDeleteHistoryEntry();
+  const outcomeMutation = useUpdateHistoryOutcome();
 
   const handleReview = (entry: HistoryEntry) => {
     const plan = buildPlanFromAIResponse(entry.imageDataUrl, {
@@ -43,6 +122,15 @@ function HistoryContent() {
     deleteMutation.mutate({ id }, { onSuccess: () => refetch() });
   };
 
+  const handleOutcome = (id: string, outcome: 'profit' | 'loss' | null) => {
+    outcomeMutation.mutate(
+      { id, outcome },
+      {
+        onSuccess: () => refetch(),
+      }
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -53,12 +141,14 @@ function HistoryContent() {
 
   return (
     <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Analysis History</h1>
-          <p className="text-slate-500 dark:text-slate-400">Your saved chart analyses — only visible to you.</p>
+          <p className="text-slate-500 dark:text-slate-400">Your saved chart analyses — only visible to you. Mark each trade to track your win rate.</p>
         </div>
       </div>
+
+      <WinRateBanner entries={entries} />
 
       {entries.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
@@ -76,7 +166,16 @@ function HistoryContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {entries.map((entry) => (
-            <div key={entry.id} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm flex flex-col group">
+            <div
+              key={entry.id}
+              className={`bg-white dark:bg-slate-900 rounded-xl border overflow-hidden shadow-sm flex flex-col group transition-colors ${
+                entry.outcome === 'profit'
+                  ? 'border-emerald-300 dark:border-emerald-700'
+                  : entry.outcome === 'loss'
+                  ? 'border-rose-300 dark:border-rose-700'
+                  : 'border-slate-200 dark:border-slate-800'
+              }`}
+            >
               <div className="h-40 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
                 <img
                   src={entry.imageDataUrl}
@@ -96,6 +195,11 @@ function HistoryContent() {
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
+                {entry.outcome && (
+                  <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-bold ${entry.outcome === 'profit' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                    {entry.outcome === 'profit' ? 'PROFIT' : 'LOSS'}
+                  </div>
+                )}
               </div>
 
               <div className="p-4 flex-1 flex flex-col">
@@ -122,21 +226,20 @@ function HistoryContent() {
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-500 dark:text-slate-400 mb-4 flex items-center">
+                <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center">
                   <Calendar className="w-3 h-3 mr-1" />
                   {new Date(entry.createdAt).toLocaleString()}
                 </div>
 
-                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800">
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-between text-blue-600 dark:text-blue-400"
-                    onClick={() => handleReview(entry)}
-                  >
-                    Open details
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
-                </div>
+                <button
+                  className="w-full text-left text-blue-600 dark:text-blue-400 text-xs flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800 hover:opacity-80 transition-opacity mb-1"
+                  onClick={() => handleReview(entry)}
+                >
+                  Open details
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+
+                <OutcomeButtons entry={entry} onUpdate={handleOutcome} />
               </div>
             </div>
           ))}

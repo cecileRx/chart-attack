@@ -80,6 +80,14 @@ export const HistoryEntryDirection = {
   SELL: "SELL",
 } as const;
 
+export type HistoryEntryOutcome =
+  (typeof HistoryEntryOutcome)[keyof typeof HistoryEntryOutcome];
+
+export const HistoryEntryOutcome = {
+  profit: "profit",
+  loss: "loss",
+} as const;
+
 export interface HistoryEntry {
   id: string;
   context: string;
@@ -102,6 +110,7 @@ export interface HistoryEntry {
   priceMin: number;
   priceMax: number;
   imageDataUrl: string;
+  outcome: HistoryEntryOutcome | null;
   createdAt: string;
 }
 

@@ -48,4 +48,35 @@ router.delete("/:id", async (req, res) => {
   res.json({ success: true });
 });
 
+router.patch("/:id/outcome", async (req, res) => {
+  const auth = getAuth(req);
+  const userId = auth?.userId;
+
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { id } = req.params;
+  const { outcome } = req.body as { outcome: string | null };
+
+  if (outcome !== "profit" && outcome !== "loss" && outcome !== null) {
+    res.status(400).json({ error: "outcome must be 'profit', 'loss', or null" });
+    return;
+  }
+
+  const updated = await db
+    .update(analysesTable)
+    .set({ outcome })
+    .where(and(eq(analysesTable.id, id), eq(analysesTable.userId, userId)))
+    .returning();
+
+  if (updated.length === 0) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  res.json({ success: true });
+});
+
 export default router;

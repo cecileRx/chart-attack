@@ -356,3 +356,44 @@ export const useDeleteHistoryEntry = <
 > => {
   return useMutation(getDeleteHistoryEntryMutationOptions(options));
 };
+
+/**
+ * @summary Set trade outcome (profit / loss) on a history entry
+ */
+export const updateHistoryOutcome = async (
+  id: string,
+  outcome: "profit" | "loss" | null,
+  options?: RequestInit,
+): Promise<{ success: boolean }> => {
+  return customFetch<{ success: boolean }>(`/api/history/${id}/outcome`, {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify({ outcome }),
+  });
+};
+
+export const useUpdateHistoryOutcome = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateHistoryOutcome>>,
+    TError,
+    { id: string; outcome: "profit" | "loss" | null },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateHistoryOutcome>>,
+  TError,
+  { id: string; outcome: "profit" | "loss" | null },
+  TContext
+> => {
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateHistoryOutcome>>,
+    { id: string; outcome: "profit" | "loss" | null }
+  > = ({ id, outcome }) => updateHistoryOutcome(id, outcome, requestOptions);
+  return useMutation({ mutationFn, mutationKey: ["updateHistoryOutcome"], ...mutationOptions });
+};

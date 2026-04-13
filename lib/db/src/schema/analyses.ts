@@ -23,6 +23,7 @@ export const analysesTable = pgTable("analyses", {
   priceMin: real("price_min").notNull(),
   priceMax: real("price_max").notNull(),
   imageDataUrl: text("image_data_url").notNull(),
+  outcome: text("outcome"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
