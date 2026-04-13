@@ -1,7 +1,7 @@
 import React from 'react';
 import { useApp } from '../components/AppContext';
 import { Button } from '@/components/ui/button';
-import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock, Trophy, Target } from 'lucide-react';
+import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock, Trophy, Target, Info } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { Show } from '@clerk/react';
 import { useGetUserHistory, useDeleteHistoryEntry, useUpdateHistoryOutcome } from '@workspace/api-client-react';
@@ -149,6 +149,15 @@ function HistoryContent() {
       </div>
 
       <WinRateBanner entries={entries} />
+
+      {entries.length > 0 && (
+        <div className="flex items-start gap-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-6 text-sm text-blue-700 dark:text-blue-300">
+          <Info className="w-4 h-4 mt-0.5 shrink-0 opacity-70" />
+          <span>
+            The more trades you mark as Profit or Loss, the more ChartAttack learns from your real results and refines its analyses to match your trading style.
+          </span>
+        </div>
+      )}
 
       {entries.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-12 text-center shadow-sm">
