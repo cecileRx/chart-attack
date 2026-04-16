@@ -67,6 +67,69 @@ export function renderAnnotations(
   const tp2Y   = getY(plan.tp2);
   const tp3Y   = getY(plan.tp3);
 
+  // ── FVG Zones (drawn first, behind everything) ─────────────────────────
+  if (plan.fvgs && plan.fvgs.length > 0) {
+    for (const fvg of plan.fvgs) {
+      const topY    = getY(fvg.top);
+      const bottomY = getY(fvg.bottom);
+      const zoneY   = Math.min(topY, bottomY);
+      const zoneH   = Math.abs(topY - bottomY);
+
+      // Skip if too thin to be visible
+      if (zoneH < 1) continue;
+
+      const isBull    = fvg.type === 'bullish';
+      const fillColor = isBull ? '#00e5d4' : '#cc00ff';
+      const fillAlpha = fvg.mitigated ? 0.06 : 0.16;
+      const lineAlpha = fvg.mitigated ? 0.20 : 0.55;
+
+      // Fill
+      ctx.globalAlpha = fillAlpha;
+      ctx.fillStyle   = fillColor;
+      ctx.fillRect(0, zoneY, canvas.width, zoneH);
+
+      // Top & bottom borders (dashed if mitigated)
+      ctx.globalAlpha = lineAlpha;
+      ctx.strokeStyle = fillColor;
+      ctx.lineWidth   = 1;
+      ctx.setLineDash(fvg.mitigated ? [4, 4] : []);
+      ctx.beginPath();
+      ctx.moveTo(0, topY);
+      ctx.lineTo(canvas.width, topY);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, bottomY);
+      ctx.lineTo(canvas.width, bottomY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1.0;
+
+      // Label pill on the left edge
+      const label    = (isBull ? 'BULL' : 'BEAR') + ' FVG' + (fvg.mitigated ? ' ✓' : '');
+      const midY     = zoneY + zoneH / 2;
+      const fontSize = Math.max(9, Math.min(11, zoneH * 0.55));
+      ctx.font        = `700 ${fontSize}px "Inter", monospace`;
+      const tw        = ctx.measureText(label).width;
+      const padX      = 6;
+      const padY      = 3;
+      const boxW      = tw + padX * 2;
+      const boxH      = fontSize + padY * 2;
+
+      // Pill background
+      ctx.fillStyle   = '#0f172a';
+      ctx.globalAlpha = 0.82;
+      roundRect(ctx, 4, midY - boxH / 2, boxW, boxH, 3);
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // Pill text
+      ctx.fillStyle    = fillColor;
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, 4 + padX, midY);
+    }
+  }
+
   // ── Shaded zones ──────────────────────────────────────────────────────────
   ctx.globalAlpha = 0.12;
 
