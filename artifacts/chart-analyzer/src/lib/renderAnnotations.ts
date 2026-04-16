@@ -79,7 +79,7 @@ export function renderAnnotations(
       if (zoneH < 1) continue;
 
       const isBull    = fvg.type === 'bullish';
-      const fillColor = isBull ? '#00e5d4' : '#cc00ff';
+      const fillColor = isBull ? '#facc15' : '#3b82f6';
       const fillAlpha = fvg.mitigated ? 0.06 : 0.16;
       const lineAlpha = fvg.mitigated ? 0.20 : 0.55;
 
