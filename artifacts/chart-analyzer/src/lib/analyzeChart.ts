@@ -21,6 +21,8 @@ export interface TradePlan {
   timeframe: string;    // chart timeframe, e.g. "4H", "Daily"
   keyLevels: string;    // description of key support/resistance
   multiTimeframeContext?: string; // summary of higher-timeframe bias (multi-chart analysis)
+  fvgs?: Array<{ type: 'bullish' | 'bearish'; top: number; bottom: number; mitigated: boolean }>;
+  cisd?: { type: 'bullish' | 'bearish' | 'none'; triggerPrice: number | null; description: string };
 }
 
 export interface ManualLevels {
@@ -73,6 +75,8 @@ export function buildPlanFromAIResponse(
     setupQuality: string;
     keyLevels: string;
     multiTimeframeContext?: string;
+    fvgs?: Array<{ type: 'bullish' | 'bearish'; top: number; bottom: number; mitigated: boolean }>;
+    cisd?: { type: 'bullish' | 'bearish' | 'none'; triggerPrice: number | null; description: string };
   },
 ): TradePlan {
   const decimals = getDecimals(ai.entry);
@@ -110,6 +114,8 @@ export function buildPlanFromAIResponse(
     timeframe: ai.timeframe,
     keyLevels: ai.keyLevels,
     multiTimeframeContext: ai.multiTimeframeContext,
+    fvgs: ai.fvgs,
+    cisd: ai.cisd,
   };
 }
 

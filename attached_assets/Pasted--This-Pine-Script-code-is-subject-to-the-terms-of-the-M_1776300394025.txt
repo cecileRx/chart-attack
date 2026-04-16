@@ -1,0 +1,319 @@
+// This Pine Script® code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © TheCleverTraders
+
+//@version=6
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INDICATOR: CISD Market Structure with FVG Filter [CLEVER]
+// AUTHOR:    TheCleverTraders
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DESCRIPTION:
+// This indicator detects Change in State of Delivery (CISD) following liquidity sweep conditions.
+// Signals can be filtered using Fair Value Gap (FVG) structures and optional Multi-Timeframe (MTF) trend confirmation.
+// All calculations are performed using confirmed bar data.
+//
+// FEATURES:
+// - Optimized CISD Detection: Pre-calculatred boundaries and limited lookbacks for performance.
+// - Optional MTF Filter: Confluence with higher timeframe trends.
+// - Liquidity Sweep Validation: Auto-detects and confirms swing high/low purges.
+// - FVG Filter Engine: - Optional FVG filtering for additional structure confluence.
+// - Dynamic Mitigation Tracking: Real-time monitoring of FVG and Swing Level retests.
+//
+// HOUSE RULES COMPLIANCE:
+// All calculations are based on confirmed bar data.
+//
+// DISCLAIMER:
+// This script is for educational purposes only. Trading involves risk. 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+indicator("CISD Market Structure with FVG Filter [CLEVER]", "CISD - Market [CLEVER]", true, max_lines_count = 500, max_boxes_count = 500, behind_chart = false)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: INPUTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+grp_logic = "⚙️ Core Logic Settings"
+noiseTolerance   = input.float(0.7, "Noise Filter", group = grp_logic, tooltip = "Determines which levels to use as CISD triggers.", maxval = 1, minval = 0, step = 0.1)
+swingLookback    = input.int(12, "Swing Period", group = grp_logic, tooltip = "Period used to identify swing highs and lows.")
+expiryThreshold  = input.int(100, "Level Expiry (Bars)", group = grp_logic, tooltip = "Number of bars after which liquidity levels are deactivated.")
+sweepWindow      = input.int(10, "Liquidity Lookback", group = grp_logic, tooltip = "Window to check for a liquidity sweep prior to a CISD signal.")
+maxScanBars      = input.int(150, "Max CISD Scan Depth", group = grp_logic, tooltip = "Performance optimization: Limits how far back the engine scans for CISD validity.")
+
+grp_mtf = "📊 MTF Confirmation Layer"
+useMTF           = input.bool(false, "Enable MTF Filter", group = grp_mtf, tooltip = "Only show bullish signals when HTF is Bullish, and vice-versa.")
+htfTimeframe     = input.timeframe("60", "HTF Timeframe", group = grp_mtf, tooltip = "The timeframe used for trend confirmation.")
+
+grp_style = "🎨 Visual Customization"
+bullishColor     = input.color(#00fff2, "Bullish Theme", group = grp_style)
+bearishColor     = input.color(#cc00ff, "Bearish Theme", group = grp_style)
+bodyOpacity      = input.int(90, "Candle Body Transparency", maxval = 100, minval = 0, group = grp_style)
+wickOpacity      = input.int(40, "Candle Wick Transparency", maxval = 100, minval = 0, group = grp_style)
+
+grp_disclaimer = "📝 Information & Usage"
+acknowledgeRisk  = input.bool(true, "I acknowledge the Trading Risk Disclaimer", group = grp_disclaimer, tooltip = "Trading involves risk. Educational purposes only.")
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: MTF ANALYSIS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+htfTrend = request.security(syminfo.tickerid, htfTimeframe, close > open ? 1 : -1, lookahead = barmerge.lookahead_off)
+// Higher timeframe data is requested with lookahead_off.
+// Signals are evaluated on confirmed bars.
+
+isMtfBullish = not useMTF or htfTrend > 0
+isMtfBearish = not useMTF or htfTrend < 0
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: LIQUIDITY ENGINE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+pivLow  = ta.pivotlow(swingLookback, swingLookback)
+pivHigh = ta.pivothigh(swingLookback, swingLookback)
+
+var array<line> activeSwingHighs = array.new_line()
+var array<line> activeSwingLows  = array.new_line()
+
+if not na(pivHigh)
+    activeSwingHighs.unshift(line.new(bar_index - swingLookback, high[swingLookback], bar_index, high[swingLookback], color = color.new(chart.fg_color, 50)))
+
+if not na(pivLow)
+    activeSwingLows.unshift(line.new(bar_index - swingLookback, low[swingLookback], bar_index, low[swingLookback], color = color.new(chart.fg_color, 50)))
+
+var float lastPurgedHigh = na
+var float lastPurgedLow  = na
+isHighWicked = false
+isLowWicked  = false
+
+if array.size(activeSwingHighs) > 0
+    for i = array.size(activeSwingHighs) - 1 to 0
+        l = array.get(activeSwingHighs, i)
+        if bar_index - line.get_x1(l) < expiryThreshold
+            lvl = line.get_y1(l)
+            line.set_x2(l, bar_index)
+            if high >= lvl and barstate.isconfirmed
+                array.remove(activeSwingHighs, i)
+                isHighWicked := true
+                lastPurgedHigh := lvl
+
+if array.size(activeSwingLows) > 0
+    for i = array.size(activeSwingLows) - 1 to 0
+        l = array.get(activeSwingLows, i)
+        if bar_index - line.get_x1(l) < expiryThreshold
+            lvl = line.get_y1(l)
+            line.set_x2(l, bar_index)
+            if low <= lvl and barstate.isconfirmed
+                array.remove(activeSwingLows, i)
+                isLowWicked := true
+                lastPurgedLow := lvl
+
+while array.size(activeSwingHighs) > 50
+    line.delete(array.pop(activeSwingHighs))
+while array.size(activeSwingLows) > 50
+    line.delete(array.pop(activeSwingLows))
+
+barsSinceSweepHigh = ta.barssince(isHighWicked)
+barsSinceSweepLow  = ta.barssince(isLowWicked)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: OPTIMIZED CISD ENGINE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// Potential Arrays store: [openLevel, barIndex, boundaryPrice]
+var array<float> bearPotentialArr = array.new_float()
+var array<float> bullPotentialArr = array.new_float()
+
+// Register potential Bearish CISD (Bullish candle followed by Bearish)
+if close[1] < open[1] and close > open
+    // PERFORMANCE OPTIMIZATION: Pre-calculate the boundary boundary limit once
+    currBoundary = 0.0
+    scanOffset = 1
+    while close[scanOffset] < open[scanOffset] and scanOffset < 50 // Limit scan depth
+        currBoundary := open[scanOffset]
+        scanOffset += 1
+    
+    if currBoundary != 0.0
+        array.push(bearPotentialArr, open)
+        array.push(bearPotentialArr, float(bar_index))
+        array.push(bearPotentialArr, currBoundary)
+
+if close[1] > open[1] and close < open
+    currBoundary = 0.0
+    scanOffset = 1
+    while close[scanOffset] > open[scanOffset] and scanOffset < 50
+        currBoundary := open[scanOffset]
+        scanOffset += 1
+    
+    if currBoundary != 0.0
+        array.push(bullPotentialArr, open)
+        array.push(bullPotentialArr, float(bar_index))
+        array.push(bullPotentialArr, currBoundary)
+
+triggeredCisd = 0
+triggerLevel = 0.0
+triggerIndex = 0.0
+
+// Bearish CISD Verification (O(N) reduced by maxScanBars)
+if array.size(bearPotentialArr) > 0
+    i = 0
+    while i < array.size(bearPotentialArr)
+        level      = array.get(bearPotentialArr, i)
+        idx        = int(array.get(bearPotentialArr, i + 1))
+        boundary   = array.get(bearPotentialArr, i + 2)
+        
+        // Performance: Discard if too old
+        currOffset = bar_index - idx
+        if currOffset > maxScanBars or currOffset < 0
+            array.remove(bearPotentialArr, i)
+            array.remove(bearPotentialArr, i)
+            array.remove(bearPotentialArr, i)
+            continue
+            
+        if close < level 
+            // Find highest close since trigger
+            maxCl = 0.0
+            for j = 0 to (currOffset > 0 ? currOffset : 0)
+                if close[j] > maxCl
+                    maxCl := close[j]
+            
+            if (maxCl - level) / (boundary - level) > noiseTolerance and isMtfBearish
+                triggerLevel := level
+                triggerIndex := float(idx)
+                array.clear(bearPotentialArr)
+                triggeredCisd := 1
+                break
+        i += 3
+
+// Bullish CISD Verification
+if array.size(bullPotentialArr) > 0
+    i = 0
+    while i < array.size(bullPotentialArr)
+        level      = array.get(bullPotentialArr, i)
+        idx        = int(array.get(bullPotentialArr, i + 1))
+        boundary   = array.get(bullPotentialArr, i + 2)
+        
+        currOffset = bar_index - idx
+        if currOffset > maxScanBars or currOffset < 0
+            array.remove(bullPotentialArr, i)
+            array.remove(bullPotentialArr, i)
+            array.remove(bullPotentialArr, i)
+            continue
+            
+        if close > level 
+            minCl = close
+            for j = 0 to (currOffset > 0 ? currOffset : 0)
+                if close[j] < minCl
+                    minCl := close[j]
+            
+            if (level - minCl) / (level - boundary) > noiseTolerance and isMtfBullish
+                triggerLevel := level
+                triggerIndex := float(idx)
+                array.clear(bullPotentialArr)
+                triggeredCisd := 2
+                break
+        i += 3
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: FVG CONFLUENCE Logic
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+var int currentTrend = 0
+isBearSweepSignal = false
+isBullSweepSignal = false
+
+var float bearFvgTop = na
+var float bearFvgBot = na
+var float bullFvgTop = na
+var float bullFvgBot = na
+
+var box bearFvgBox = na
+var box bullFvgBox = na
+var bool isBearFvgMitigated = false
+var bool isBullFvgMitigated = false
+
+if triggeredCisd == 1
+    currentTrend := -1
+    line.new(int(triggerIndex), triggerLevel, bar_index, triggerLevel, color = bearishColor, width = 3)
+    if barsSinceSweepHigh <= sweepWindow and close < lastPurgedHigh
+        isBearSweepSignal := true
+    
+    if low[2] > high[0] 
+        bearFvgTop := low[2]
+        bearFvgBot := high[0]
+        isBearFvgMitigated := false
+        if not na(bearFvgBox)
+            box.delete(bearFvgBox)
+        bearFvgBox := box.new(bar_index, bearFvgTop, bar_index + 10, bearFvgBot, border_color=na, bgcolor=color.new(bearishColor, 80))
+        bullFvgTop := na
+        if not na(bullFvgBox)
+            box.delete(bullFvgBox)
+            bullFvgBox := na
+    else
+        bearFvgTop := na
+
+if triggeredCisd == 2
+    currentTrend := 1
+    line.new(int(triggerIndex), triggerLevel, bar_index, triggerLevel, color = bullishColor, width = 3)
+    if barsSinceSweepLow <= sweepWindow and close > lastPurgedLow
+        isBullSweepSignal := true
+    
+    if high[2] < low[0]
+        bullFvgTop := low[0]
+        bullFvgBot := high[2]
+        isBullFvgMitigated := false
+        if not na(bullFvgBox)
+            box.delete(bullFvgBox)
+        bullFvgBox := box.new(bar_index, bullFvgTop, bar_index + 10, bullFvgBot, border_color=na, bgcolor=color.new(bullishColor, 80))
+        bearFvgTop := na
+        if not na(bearFvgBox)
+            box.delete(bearFvgBox)
+            bearFvgBox := na
+    else
+        bullFvgTop := na
+
+if not na(bullFvgBox)
+    box.set_right(bullFvgBox, bar_index + 5)
+if not na(bearFvgBox)
+    box.set_right(bearFvgBox, bar_index + 5)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: RETEST ENGINE
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+signalBuyRetest  = false
+signalSellRetest = false
+
+if not na(bullFvgTop) and not isBullFvgMitigated and currentTrend == 1
+    if low <= bullFvgTop
+        signalBuyRetest := true
+        isBullFvgMitigated := true
+        label.new(bar_index, low, "ENTRY\nFVG", color=bullishColor, textcolor=chart.bg_color, style=label.style_label_up, size=size.small)
+
+if not na(bearFvgBot) and not isBearFvgMitigated and currentTrend == -1
+    if high >= bearFvgBot
+        signalSellRetest := true
+        isBearFvgMitigated := true
+        label.new(bar_index, high, "ENTRY\nFVG", color=bearishColor, textcolor=chart.bg_color, style=label.style_label_down, size=size.small)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: VISUALS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+plotshape(isBearSweepSignal ? high : na, "Major Bearish Signal", shape.labeldown, location.abovebar, bearishColor, size = size.small, text = "▼", textcolor = chart.fg_color)
+plotshape(isBullSweepSignal ? low  : na, "Major Bullish Signal",  shape.labelup,   location.belowbar, bullishColor, size = size.small, text = "▲", textcolor = chart.fg_color)
+
+plotchar(not na(pivHigh) ? high[swingLookback] : na, "Swing High", "●", location.absolute, bearishColor, size = size.tiny, offset = -swingLookback)
+plotchar(not na(pivLow)  ? low[swingLookback]  : na, "Swing Low",  "●", location.absolute, bullishColor, size = size.tiny, offset = -swingLookback)
+
+bodyFill = color.from_gradient(bodyOpacity, 0, 100, currentTrend > 0 ? bullishColor : bearishColor, chart.bg_color)
+wickFill = color.from_gradient(wickOpacity, 0, 100, currentTrend > 0 ? bullishColor : bearishColor, chart.bg_color)
+plotcandle(open, high, low, close, "Flow Candles", bodyFill, wickFill, bordercolor = wickFill)
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SECTION: ALERTS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+alertcondition(isHighWicked, "Liquidity: High Purged", "Liquidity high sweep detected.")
+alertcondition(isLowWicked,  "Liquidity: Low Purged",  "Liquidity low sweep detected.")
+alertcondition(triggeredCisd == 1, "Trend: Bearish CISD", "Confirmed Bearish Change in State of Delivery.")
+alertcondition(triggeredCisd == 2, "Trend: Bullish CISD", "Confirmed Bullish Change in State of Delivery.")
+alertcondition(signalBuyRetest,    "Entry: Buy Retest",   "Price re-tested confluence FVG for Buy entry.")
+alertcondition(signalSellRetest,   "Entry: Sell Retest",  "Price re-tested confluence FVG for Sell entry.")

@@ -24,17 +24,32 @@ Your JSON must have EXACTLY these fields:
   "confidenceScore": <integer from 40 to 85>,
   "explanation": "2-3 sentences explaining the setup in simple, educational language. Reference actual price levels visible on the chart.",
   "setupQuality": "One sentence on setup quality and what to watch for.",
-  "keyLevels": "Brief description of the key support/resistance levels you identified on the chart."
+  "keyLevels": "Brief description of the key support/resistance levels you identified on the chart.",
+  "fvgs": [
+    {
+      "type": "bullish or bearish",
+      "top": <number — upper boundary of the Fair Value Gap>,
+      "bottom": <number — lower boundary of the Fair Value Gap>,
+      "mitigated": <boolean — true if price has already returned to fill this gap>
+    }
+  ],
+  "cisd": {
+    "type": "bullish, bearish, or none",
+    "triggerPrice": <number or null — price level where the Change in State of Delivery occurred>,
+    "description": "One sentence describing the CISD signal and any liquidity sweep that preceded it, or 'No CISD detected' if none."
+  }
 }
 
 Critical rules:
 - priceMin and priceMax MUST be read from the right price axis labels visible in the image — use the actual numbers shown.
-- All price values (entry, sl, tp1, tp2, tp3) MUST be within or very close to the priceMin/priceMax range.
+- All price values (entry, sl, tp1, tp2, tp3, fvg top/bottom, cisd triggerPrice) MUST be within or very close to the priceMin/priceMax range.
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
 - Never use language like "guaranteed", "safe signal", or "winning trade".
-- If the chart is unclear or doesn't show price levels, still provide your best estimate and set confidence to "LOW".`;
+- If the chart is unclear or doesn't show price levels, still provide your best estimate and set confidence to "LOW".
+- FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
+- CISD detection: A Change in State of Delivery (CISD) occurs when price sweeps through a swing high or low (liquidity grab), then aggressively reverses and breaks the structure in the opposite direction. A Bullish CISD follows a sweep of a swing low. A Bearish CISD follows a sweep of a swing high. If no clear CISD is visible, set type to "none" and triggerPrice to null.`;
 
 const MULTI_TIMEFRAME_SYSTEM_PROMPT = `You are an expert technical analyst specializing in financial chart reading and multi-timeframe analysis. When given multiple chart images at different timeframes, analyse them together to produce a confluence-based trade plan. Respond ONLY with valid JSON. No markdown fences, no explanation outside the JSON object.
 
@@ -57,17 +72,32 @@ Your JSON must have EXACTLY these fields:
   "explanation": "2-3 sentences explaining the setup in simple, educational language. Reference actual price levels visible on the chart.",
   "setupQuality": "One sentence on setup quality and what to watch for.",
   "keyLevels": "Brief description of the key support/resistance levels you identified on the PRIMARY chart.",
-  "multiTimeframeContext": "2-4 sentences summarising the bias and key confluences found across all timeframes. Mention whether the higher timeframe trend supports or contradicts the setup, and any confluence zones identified."
+  "multiTimeframeContext": "2-4 sentences summarising the bias and key confluences found across all timeframes. Mention whether the higher timeframe trend supports or contradicts the setup, and any confluence zones identified.",
+  "fvgs": [
+    {
+      "type": "bullish or bearish",
+      "top": <number — upper boundary of the Fair Value Gap>,
+      "bottom": <number — lower boundary of the Fair Value Gap>,
+      "mitigated": <boolean — true if price has already returned to fill this gap>
+    }
+  ],
+  "cisd": {
+    "type": "bullish, bearish, or none",
+    "triggerPrice": <number or null — price level where the Change in State of Delivery occurred>,
+    "description": "One sentence describing the CISD signal and any liquidity sweep that preceded it, or 'No CISD detected' if none."
+  }
 }
 
 Critical rules:
 - priceMin and priceMax MUST be read from the right price axis labels of the PRIMARY chart.
-- All price values (entry, sl, tp1, tp2, tp3) MUST be within or very close to the priceMin/priceMax range of the PRIMARY chart.
+- All price values (entry, sl, tp1, tp2, tp3, fvg top/bottom, cisd triggerPrice) MUST be within or very close to the priceMin/priceMax range of the PRIMARY chart.
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
 - Never use language like "guaranteed", "safe signal", or "winning trade".
-- If charts are unclear, still provide your best estimate and set confidence to "LOW".`;
+- If charts are unclear, still provide your best estimate and set confidence to "LOW".
+- FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
+- CISD detection: A Change in State of Delivery (CISD) occurs when price sweeps through a swing high or low (liquidity grab), then aggressively reverses and breaks the structure in the opposite direction. A Bullish CISD follows a sweep of a swing low. A Bearish CISD follows a sweep of a swing high. If no clear CISD is visible, set type to "none" and triggerPrice to null.`;
 
 router.post("/", async (req, res) => {
   const imageDataUrl: unknown = req.body?.imageDataUrl;
@@ -237,6 +267,8 @@ router.post("/", async (req, res) => {
         priceMin: plan.priceMin as number,
         priceMax: plan.priceMax as number,
         imageDataUrl,
+        fvgsJson: plan.fvgs ? JSON.stringify(plan.fvgs) : null,
+        cisdJson: plan.cisd ? JSON.stringify(plan.cisd) : null,
       });
 
       plan = { ...plan, id };

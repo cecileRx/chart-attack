@@ -24,6 +24,8 @@ export const analysesTable = pgTable("analyses", {
   priceMax: real("price_max").notNull(),
   imageDataUrl: text("image_data_url").notNull(),
   outcome: text("outcome"),
+  fvgsJson: text("fvgs_json"),
+  cisdJson: text("cisd_json"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

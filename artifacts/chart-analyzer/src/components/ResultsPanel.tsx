@@ -4,7 +4,7 @@ import { LevelLine } from './LevelLine';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2, Layers, Calculator } from 'lucide-react';
+import { Info, Settings2, Download, RefreshCcw, TrendingUp, TrendingDown, Clock, BarChart2, Layers, Calculator, Zap, AlertTriangle } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -218,6 +218,96 @@ export function ResultsPanel() {
               </AccordionTrigger>
               <AccordionContent className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
                 {currentPlan.keyLevels}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {(currentPlan.cisd || (currentPlan.fvgs && currentPlan.fvgs.length > 0)) && (
+            <AccordionItem value="cisd-fvg" className="border-slate-200 dark:border-slate-800">
+              <AccordionTrigger className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider hover:no-underline">
+                <span className="flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5" />
+                  CISD &amp; Fair Value Gaps
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+
+                {/* CISD Signal */}
+                {currentPlan.cisd && currentPlan.cisd.type !== 'none' && (
+                  <div className={`rounded-xl border p-3 ${
+                    currentPlan.cisd.type === 'bullish'
+                      ? 'bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800'
+                      : 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Zap className={`w-3.5 h-3.5 ${currentPlan.cisd.type === 'bullish' ? 'text-cyan-600 dark:text-cyan-400' : 'text-violet-600 dark:text-violet-400'}`} />
+                        <span className={`text-xs font-bold uppercase tracking-wide ${currentPlan.cisd.type === 'bullish' ? 'text-cyan-700 dark:text-cyan-300' : 'text-violet-700 dark:text-violet-300'}`}>
+                          {currentPlan.cisd.type === 'bullish' ? 'Bullish CISD' : 'Bearish CISD'}
+                        </span>
+                      </div>
+                      {currentPlan.cisd.triggerPrice !== null && (
+                        <span className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          @ {currentPlan.cisd.triggerPrice}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{currentPlan.cisd.description}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+                      A Change in State of Delivery signals a structural shift after a liquidity sweep — the market reversed after triggering stop orders beyond a swing level.
+                    </p>
+                  </div>
+                )}
+
+                {currentPlan.cisd && currentPlan.cisd.type === 'none' && (
+                  <div className="flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>No clear CISD signal detected on this chart.</span>
+                  </div>
+                )}
+
+                {/* Fair Value Gaps */}
+                {currentPlan.fvgs && currentPlan.fvgs.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fair Value Gaps</p>
+                    {currentPlan.fvgs.map((fvg, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-center justify-between rounded-lg px-3 py-2 border text-xs ${
+                          fvg.mitigated
+                            ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 opacity-60'
+                            : fvg.type === 'bullish'
+                            ? 'bg-cyan-50 dark:bg-cyan-950/30 border-cyan-200 dark:border-cyan-800'
+                            : 'bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-sm shrink-0 ${fvg.type === 'bullish' ? 'bg-cyan-500' : 'bg-violet-500'} ${fvg.mitigated ? 'opacity-40' : ''}`} />
+                          <span className={`font-semibold ${fvg.type === 'bullish' ? 'text-cyan-700 dark:text-cyan-300' : 'text-violet-700 dark:text-violet-300'} ${fvg.mitigated ? 'opacity-60' : ''}`}>
+                            {fvg.type === 'bullish' ? 'Bullish' : 'Bearish'} FVG
+                          </span>
+                          {fvg.mitigated && (
+                            <span className="text-slate-400 dark:text-slate-500 italic">filled</span>
+                          )}
+                        </div>
+                        <span className="font-mono text-slate-600 dark:text-slate-300">
+                          {fvg.bottom} – {fvg.top}
+                        </span>
+                      </div>
+                    ))}
+                    <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed pt-1">
+                      A Fair Value Gap (FVG) is a price imbalance zone where the market moved too fast for two-sided trading. Price often returns to these zones before continuing the trend.
+                    </p>
+                  </div>
+                )}
+
+                {currentPlan.fvgs && currentPlan.fvgs.length === 0 && (
+                  <div className="flex items-start gap-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
+                    <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <span>No visible Fair Value Gaps detected on this chart.</span>
+                  </div>
+                )}
+
               </AccordionContent>
             </AccordionItem>
           )}

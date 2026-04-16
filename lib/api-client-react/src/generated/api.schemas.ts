@@ -70,6 +70,10 @@ export interface ChartAnalysisResult {
   keyLevels: string;
   /** Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed) */
   multiTimeframeContext?: string;
+  /** Fair Value Gaps detected on the chart (may be empty if none found) */
+  fvgs?: FVG[];
+  /** CISD Market Structure signal detected on the chart */
+  cisd?: CISDSignal;
 }
 
 export type HistoryEntryDirection =
@@ -112,6 +116,19 @@ export interface HistoryEntry {
   imageDataUrl: string;
   outcome: HistoryEntryOutcome | null;
   createdAt: string;
+}
+
+export interface FVG {
+  type: "bullish" | "bearish";
+  top: number;
+  bottom: number;
+  mitigated: boolean;
+}
+
+export interface CISDSignal {
+  type: "bullish" | "bearish" | "none";
+  triggerPrice: number | null;
+  description: string;
 }
 
 export interface AnalysisError {
