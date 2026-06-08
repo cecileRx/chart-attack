@@ -5,17 +5,11 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-
-export interface AdditionalChartImage {
-  /** Base64 data URL of the additional chart image */
-  imageDataUrl: string;
-  /** Timeframe label for this chart (e.g. 1H, 4H, Daily) */
-  timeframe: string;
-}
+import type { AdditionalChartImage } from "./additionalChartImage";
 
 export interface AnalyzeChartRequest {
-  /** Base64 data URL of the chart image */
-  imageDataUrl: string;
+  /** GCS object name returned by /analyze-chart/upload-url */
+  imageKey: string;
   /** Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily) */
   primaryTimeframe?: string;
   /** Optional additional chart images for multi-timeframe analysis */

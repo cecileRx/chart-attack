@@ -20,9 +20,12 @@ import type {
   AnalysisError,
   AnalyzeChartRequest,
   ChartAnalysisResult,
+  ChartUploadUrlResponse,
   DeleteHistoryEntry200,
   HealthStatus,
   HistoryEntry,
+  UpdateHistoryOutcome200,
+  UpdateHistoryOutcomeBody,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -111,7 +114,89 @@ export function useHealthCheck<
 }
 
 /**
- * Sends a chart image to the AI vision model and returns a structured trade plan
+ * Returns a presigned GCS PUT URL and an object name. The client uploads the image directly to GCS, then passes the objectName to /analyze-chart.
+ * @summary Request a presigned upload URL for a chart image
+ */
+export const getRequestChartUploadUrlUrl = () => {
+  return `/api/analyze-chart/upload-url`;
+};
+
+export const requestChartUploadUrl = async (
+  options?: RequestInit,
+): Promise<ChartUploadUrlResponse> => {
+  return customFetch<ChartUploadUrlResponse>(getRequestChartUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRequestChartUploadUrlMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestChartUploadUrl>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestChartUploadUrl>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["requestChartUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestChartUploadUrl>>,
+    void
+  > = () => {
+    return requestChartUploadUrl(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestChartUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestChartUploadUrl>>
+>;
+
+export type RequestChartUploadUrlMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Request a presigned upload URL for a chart image
+ */
+export const useRequestChartUploadUrl = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestChartUploadUrl>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestChartUploadUrl>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRequestChartUploadUrlMutationOptions(options));
+};
+
+/**
+ * Sends a chart image (identified by objectName from /analyze-chart/upload-url) to the AI vision model and returns a structured trade plan
  * @summary Analyze a chart image using AI
  */
 export const getAnalyzeChartImageUrl = () => {
@@ -358,21 +443,73 @@ export const useDeleteHistoryEntry = <
 };
 
 /**
- * @summary Set trade outcome (profit / loss) on a history entry
+ * @summary Update the outcome of a history entry
  */
+export const getUpdateHistoryOutcomeUrl = (id: string) => {
+  return `/api/history/${id}/outcome`;
+};
+
 export const updateHistoryOutcome = async (
   id: string,
-  outcome: "profit" | "loss" | null,
+  updateHistoryOutcomeBody: UpdateHistoryOutcomeBody,
   options?: RequestInit,
-): Promise<{ success: boolean }> => {
-  return customFetch<{ success: boolean }>(`/api/history/${id}/outcome`, {
+): Promise<UpdateHistoryOutcome200> => {
+  return customFetch<UpdateHistoryOutcome200>(getUpdateHistoryOutcomeUrl(id), {
     ...options,
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify({ outcome }),
+    body: JSON.stringify(updateHistoryOutcomeBody),
   });
 };
 
+export const getUpdateHistoryOutcomeMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateHistoryOutcome>>,
+    TError,
+    { id: string; data: BodyType<UpdateHistoryOutcomeBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateHistoryOutcome>>,
+  TError,
+  { id: string; data: BodyType<UpdateHistoryOutcomeBody> },
+  TContext
+> => {
+  const mutationKey = ["updateHistoryOutcome"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateHistoryOutcome>>,
+    { id: string; data: BodyType<UpdateHistoryOutcomeBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateHistoryOutcome(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateHistoryOutcomeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateHistoryOutcome>>
+>;
+export type UpdateHistoryOutcomeMutationBody =
+  BodyType<UpdateHistoryOutcomeBody>;
+export type UpdateHistoryOutcomeMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Update the outcome of a history entry
+ */
 export const useUpdateHistoryOutcome = <
   TError = ErrorType<AnalysisError>,
   TContext = unknown,
@@ -380,20 +517,15 @@ export const useUpdateHistoryOutcome = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof updateHistoryOutcome>>,
     TError,
-    { id: string; outcome: "profit" | "loss" | null },
+    { id: string; data: BodyType<UpdateHistoryOutcomeBody> },
     TContext
   >;
   request?: SecondParameter<typeof customFetch>;
 }): UseMutationResult<
   Awaited<ReturnType<typeof updateHistoryOutcome>>,
   TError,
-  { id: string; outcome: "profit" | "loss" | null },
+  { id: string; data: BodyType<UpdateHistoryOutcomeBody> },
   TContext
 > => {
-  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateHistoryOutcome>>,
-    { id: string; outcome: "profit" | "loss" | null }
-  > = ({ id, outcome }) => updateHistoryOutcome(id, outcome, requestOptions);
-  return useMutation({ mutationFn, mutationKey: ["updateHistoryOutcome"], ...mutationOptions });
+  return useMutation(getUpdateHistoryOutcomeMutationOptions(options));
 };

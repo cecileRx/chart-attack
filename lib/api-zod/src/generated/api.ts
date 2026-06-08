@@ -16,22 +16,43 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
- * Sends a chart image to the AI vision model and returns a structured trade plan
- * @summary Analyze a chart image using AI
+ * Returns a presigned GCS PUT URL and an object name. The client uploads the image directly to GCS, then passes the objectName to /analyze-chart.
+ * @summary Request a presigned upload URL for a chart image
  */
-export const AdditionalChartImageSchema = zod.object({
-  imageDataUrl: zod.string().describe("Base64 data URL of the additional chart image"),
-  timeframe: zod.string().describe("Timeframe label for this chart (e.g. 1H, 4H, Daily)"),
+export const RequestChartUploadUrlResponse = zod.object({
+  uploadURL: zod
+    .string()
+    .describe("Presigned GCS PUT URL — upload the image bytes directly here"),
+  objectName: zod
+    .string()
+    .describe("GCS object name to pass to \/analyze-chart as imageKey"),
 });
 
+/**
+ * Sends a chart image (identified by objectName from /analyze-chart/upload-url) to the AI vision model and returns a structured trade plan
+ * @summary Analyze a chart image using AI
+ */
 export const AnalyzeChartImageBody = zod.object({
-  imageDataUrl: zod.string().describe("Base64 data URL of the chart image"),
+  imageKey: zod
+    .string()
+    .describe("GCS object name returned by \/analyze-chart\/upload-url"),
   primaryTimeframe: zod
     .string()
     .optional()
-    .describe("Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily)"),
+    .describe(
+      "Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily)",
+    ),
   additionalImages: zod
-    .array(AdditionalChartImageSchema)
+    .array(
+      zod.object({
+        imageKey: zod
+          .string()
+          .describe("GCS object name returned by \/analyze-chart\/upload-url"),
+        timeframe: zod
+          .string()
+          .describe("Timeframe label for this chart (e.g. 1H, 4H, Daily)"),
+      }),
+    )
     .optional()
     .describe("Optional additional chart images for multi-timeframe analysis"),
 });
@@ -102,6 +123,10 @@ export const GetUserHistoryResponseItem = zod.object({
   priceMin: zod.number(),
   priceMax: zod.number(),
   imageDataUrl: zod.string(),
+  outcome: zod
+    .enum(["profit", "loss"])
+    .nullish()
+    .describe("Optional trade outcome marked by the user"),
   createdAt: zod.coerce.date(),
 });
 export const GetUserHistoryResponse = zod.array(GetUserHistoryResponseItem);
@@ -114,5 +139,23 @@ export const DeleteHistoryEntryParams = zod.object({
 });
 
 export const DeleteHistoryEntryResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Update the outcome of a history entry
+ */
+export const UpdateHistoryOutcomeParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateHistoryOutcomeBody = zod.object({
+  outcome: zod
+    .enum(["profit", "loss"])
+    .nullable()
+    .describe("profit, loss, or null to clear"),
+});
+
+export const UpdateHistoryOutcomeResponse = zod.object({
   success: zod.boolean(),
 });

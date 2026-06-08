@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useApp } from '../components/AppContext';
 import { ChartCanvas } from '../components/ChartCanvas';
 import { ResultsPanel } from '../components/ResultsPanel';
@@ -20,14 +20,52 @@ const TIPS = [
 ];
 
 const LOADING_STEPS = [
+  "Uploading chart...",
   "Reading price axis...",
-  "Identifying key levels...",
   "Generating trade plan...",
 ];
 
+/** Convert a base64 data URL to a Blob for direct GCS upload. */
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, data] = dataUrl.split(',');
+  const mimeMatch = header?.match(/data:([^;]+)/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+  const bytes = atob(data ?? '');
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
 /**
- * Resize + JPEG-compress a data URL so the API payload stays small.
- * Max width 1280 px, JPEG 82 % quality → typically 100–300 KB as base64.
+ * Upload a compressed image to Replit Object Storage via presigned URL.
+ * Step 1: POST /api/analyze-chart/upload-url → { uploadURL, objectName }  (< 200 bytes, under proxy limit)
+ * Step 2: PUT image blob directly to GCS presigned URL (bypasses Replit proxy entirely)
+ * Returns the objectName to pass to the analyze endpoint.
+ */
+async function uploadToStorage(dataUrl: string, signal?: AbortSignal): Promise<string> {
+  const urlRes = await fetch('/api/analyze-chart/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+    signal,
+  });
+  if (!urlRes.ok) throw new Error(`Upload URL request failed: ${urlRes.status}`);
+  const { uploadURL, objectName } = await urlRes.json() as { uploadURL: string; objectName: string };
+
+  const blob = dataUrlToBlob(dataUrl);
+  const uploadRes = await fetch(uploadURL, {
+    method: 'PUT',
+    body: blob,
+    headers: { 'Content-Type': blob.type || 'image/jpeg' },
+  });
+  if (!uploadRes.ok) throw new Error(`GCS upload failed: ${uploadRes.status}`);
+
+  return objectName;
+}
+
+/**
+ * Resize + JPEG-compress a data URL so the upload stays small.
+ * Max width 1280 px, JPEG 82 % quality → typically 100–300 KB.
  * Always resolves — falls back to the original data URL on any error.
  */
 function compressImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
@@ -73,10 +111,13 @@ export default function Analyze() {
   const [primaryTimeframe, setPrimaryTimeframe] = useState('');
   const [primaryTimeframeCustom, setPrimaryTimeframeCustom] = useState('');
 
+  // Holds the compressed primary image URL so onSuccess can build the plan overlay
+  const lastCompressedImageRef = useRef<string>('');
+
   const analyzeChartMutation = useAnalyzeChartImage({
     mutation: {
-      onSuccess: (result, variables) => {
-        const imageDataUrl = variables.data.imageDataUrl;
+      onSuccess: (result) => {
+        const imageDataUrl = lastCompressedImageRef.current;
         const plan = buildPlanFromAIResponse(imageDataUrl, result as Parameters<typeof buildPlanFromAIResponse>[1]);
         setCurrentPlan(plan);
         setIsAnalyzing(false);
@@ -160,7 +201,8 @@ export default function Analyze() {
     setApiError(null);
     setLoadingStep(0);
 
-    // Animate loading steps while the API call runs
+    const abortController = new AbortController();
+
     let step = 0;
     const interval = setInterval(() => {
       step++;
@@ -169,12 +211,8 @@ export default function Analyze() {
       } else {
         clearInterval(interval);
       }
-    }, 900);
+    }, 1200);
 
-    // AbortController lets the safety timer cancel the in-flight fetch
-    const abortController = new AbortController();
-
-    // Safety timeout — abort + stop the spinner after 120 s
     const safetyTimer = setTimeout(() => {
       abortController.abort();
       setIsAnalyzing(false);
@@ -189,7 +227,7 @@ export default function Analyze() {
 
     const effectivePrimaryTf = getEffectivePrimaryTimeframe();
 
-    // Compress images before sending — reduces payload from ~5 MB to ~200 KB
+    // Step 1: Compress images
     let compressedPrimary: string;
     let compressedAdditional: string[];
     try {
@@ -198,27 +236,43 @@ export default function Analyze() {
         ...additionalCharts.map(c => compressImage(c.imageDataUrl)),
       ]);
     } catch {
-      // Fallback: use original images uncompressed
       compressedPrimary = currentImage;
       compressedAdditional = additionalCharts.map(c => c.imageDataUrl);
     }
 
-    const additionalImages = compressedAdditional.map((dataUrl, i) => ({
-      imageDataUrl: dataUrl,
+    lastCompressedImageRef.current = compressedPrimary;
+
+    // Step 2: Upload images directly to GCS storage (bypasses the Replit proxy 4 KB POST limit)
+    let primaryKey: string;
+    let additionalKeys: string[];
+    try {
+      [primaryKey, ...additionalKeys] = await Promise.all([
+        uploadToStorage(compressedPrimary, abortController.signal),
+        ...compressedAdditional.map(url => uploadToStorage(url, abortController.signal)),
+      ]);
+    } catch (err) {
+      cleanup();
+      setIsAnalyzing(false);
+      if ((err as { name?: string })?.name === 'AbortError') return;
+      setApiError('Failed to upload chart image. Please check your connection and try again.');
+      return;
+    }
+
+    const additionalImages = additionalKeys.map((key, i) => ({
+      imageKey: key,
       timeframe: additionalCharts[i].timeframe.trim() || 'Unknown',
     }));
 
+    // Step 3: Call the analyze endpoint with only the tiny storage key
     analyzeChartMutation.mutate(
       {
         data: {
-          imageDataUrl: compressedPrimary,
+          imageKey: primaryKey,
           ...(effectivePrimaryTf ? { primaryTimeframe: effectivePrimaryTf } : {}),
           ...(additionalImages.length > 0 ? { additionalImages } : {}),
         },
       },
-      {
-        onSettled: cleanup,
-      },
+      { onSettled: cleanup },
     );
   };
 

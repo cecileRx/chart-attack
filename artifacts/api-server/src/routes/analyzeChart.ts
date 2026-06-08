@@ -3,6 +3,7 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { getAuth } from "@clerk/express";
 import { db, analysesTable } from "@workspace/db";
 import { randomBytes } from "crypto";
+import { requestChartUploadURL, downloadChartImage, deleteChartImage } from "../lib/chartStorage";
 
 const router = Router();
 
@@ -99,93 +100,91 @@ Critical rules:
 - FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
 - CISD detection: A Change in State of Delivery (CISD) occurs when price sweeps through a swing high or low (liquidity grab), then aggressively reverses and breaks the structure in the opposite direction. A Bullish CISD follows a sweep of a swing low. A Bearish CISD follows a sweep of a swing high. If no clear CISD is visible, set type to "none" and triggerPrice to null.`;
 
+router.post("/upload-url", async (_req, res) => {
+  const { uploadURL, objectName } = await requestChartUploadURL();
+  res.json({ uploadURL, objectName });
+});
+
 router.post("/", async (req, res) => {
-  req.log.info({ bodySize: JSON.stringify(req.body ?? {}).length }, "analyze-chart: handler reached");
-
-  const imageDataUrl: unknown = req.body?.imageDataUrl;
-  if (typeof imageDataUrl !== "string" || imageDataUrl.length < 10) {
-    res.status(400).json({ error: "Invalid request: imageDataUrl is required" });
+  const imageKey: unknown = req.body?.imageKey;
+  if (typeof imageKey !== "string" || imageKey.trim().length === 0) {
+    res.status(400).json({ error: "Invalid request: imageKey is required" });
     return;
   }
 
-  if (!imageDataUrl.startsWith("data:image/")) {
-    res.status(400).json({ error: "Invalid image format: must be a data URL" });
-    return;
-  }
-
-  const base64 = imageDataUrl.split(",")[1];
-  const mimeType = imageDataUrl.split(";")[0].split(":")[1];
-
-  if (!base64) {
-    res.status(400).json({ error: "Could not extract image data" });
-    return;
-  }
-
-  // Extract optional primary timeframe label
   const primaryTimeframe: string =
     typeof req.body?.primaryTimeframe === "string" ? req.body.primaryTimeframe.trim() : "";
 
-  // Validate and extract additional images — accept all; use "Unknown" as fallback timeframe
-  const additionalImages: Array<{ imageDataUrl: string; timeframe: string }> = [];
+  const additionalImages: Array<{ imageKey: string; timeframe: string }> = [];
   const rawAdditional = req.body?.additionalImages;
   if (Array.isArray(rawAdditional)) {
     for (const item of rawAdditional) {
-      if (
-        item &&
-        typeof item.imageDataUrl === "string" &&
-        item.imageDataUrl.startsWith("data:image/")
-      ) {
-        const tf = typeof item.timeframe === "string" && item.timeframe.trim().length > 0
-          ? item.timeframe.trim()
-          : "Unknown";
-        additionalImages.push({ imageDataUrl: item.imageDataUrl, timeframe: tf });
+      if (item && typeof item.imageKey === "string" && item.imageKey.trim().length > 0) {
+        const tf =
+          typeof item.timeframe === "string" && item.timeframe.trim().length > 0
+            ? item.timeframe.trim()
+            : "Unknown";
+        additionalImages.push({ imageKey: item.imageKey.trim(), timeframe: tf });
       }
     }
   }
 
-  const isMultiTimeframe = additionalImages.length > 0;
+  // Download primary image from object storage
+  let primaryDataUrl: string;
+  let primaryMime: string;
+  try {
+    const { dataUrl, contentType } = await downloadChartImage(imageKey.trim());
+    primaryDataUrl = dataUrl;
+    primaryMime = contentType;
+  } catch (err) {
+    req.log.error({ err, imageKey }, "Failed to download primary chart from storage");
+    res.status(400).json({ error: "Could not retrieve chart image. Please re-upload and try again." });
+    return;
+  }
+
+  // Download additional images from object storage
+  const additionalData: Array<{ dataUrl: string; mimeType: string; timeframe: string }> = [];
+  for (const additional of additionalImages) {
+    try {
+      const { dataUrl, contentType } = await downloadChartImage(additional.imageKey);
+      additionalData.push({ dataUrl, mimeType: contentType, timeframe: additional.timeframe });
+    } catch {
+      req.log.warn({ key: additional.imageKey }, "Skipping additional chart — download failed");
+    }
+  }
+
+  const isMultiTimeframe = additionalData.length > 0;
   const systemPrompt = isMultiTimeframe ? MULTI_TIMEFRAME_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
-  // Build user content: primary chart + optional additional charts
   type ContentBlock =
     | { type: "image_url"; image_url: { url: string; detail: "high" } }
     | { type: "text"; text: string };
 
+  const primaryBase64 = primaryDataUrl.split(",")[1] ?? "";
   const userContent: ContentBlock[] = [];
 
   if (isMultiTimeframe) {
     const primaryLabel = primaryTimeframe
       ? `PRIMARY chart — ${primaryTimeframe} timeframe (base all trade levels on this one):`
       : "PRIMARY chart (base all trade levels on this one):";
-    userContent.push({
-      type: "text",
-      text: primaryLabel,
-    });
+    userContent.push({ type: "text", text: primaryLabel });
   }
 
   userContent.push({
     type: "image_url",
-    image_url: {
-      url: `data:${mimeType};base64,${base64}`,
-      detail: "high",
-    },
+    image_url: { url: `data:${primaryMime};base64,${primaryBase64}`, detail: "high" },
   });
 
-  for (const additional of additionalImages) {
-    const addBase64 = additional.imageDataUrl.split(",")[1];
-    const addMimeType = additional.imageDataUrl.split(";")[0].split(":")[1];
+  for (const additional of additionalData) {
+    const addBase64 = additional.dataUrl.split(",")[1];
     if (!addBase64) continue;
-
     userContent.push({
       type: "text",
       text: `Additional chart — ${additional.timeframe} timeframe:`,
     });
     userContent.push({
       type: "image_url",
-      image_url: {
-        url: `data:${addMimeType};base64,${addBase64}`,
-        detail: "high",
-      },
+      image_url: { url: `data:${additional.mimeType};base64,${addBase64}`, detail: "high" },
     });
   }
 
@@ -202,16 +201,16 @@ router.post("/", async (req, res) => {
     model: "gpt-5.2",
     max_completion_tokens: 1024,
     messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
-      {
-        role: "user",
-        content: userContent,
-      },
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
     ],
   });
+
+  // Clean up temporary chart images from storage (fire-and-forget)
+  deleteChartImage(imageKey.trim());
+  for (const additional of additionalImages) {
+    deleteChartImage(additional.imageKey);
+  }
 
   const content = response.choices[0]?.message?.content;
   if (!content) {
@@ -233,7 +232,6 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // If user is authenticated, persist the analysis
   const auth = getAuth(req);
   const userId = auth?.userId;
 
@@ -243,9 +241,24 @@ router.post("/", async (req, res) => {
       const isBuy = plan.direction === "BUY";
       const entry = plan.entry as number;
       const sl = plan.sl as number;
-      const rrTp1 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk : entry - risk) - entry) / risk).toFixed(2)) : 0;
-      const rrTp2 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk * 2 : entry - risk * 2) - entry) / risk).toFixed(2)) : 0;
-      const rrTp3 = risk > 0 ? Number((Math.abs((isBuy ? entry + risk * 3 : entry - risk * 3) - entry) / risk).toFixed(2)) : 0;
+      const rrTp1 =
+        risk > 0
+          ? Number(
+              (Math.abs((isBuy ? entry + risk : entry - risk) - entry) / risk).toFixed(2),
+            )
+          : 0;
+      const rrTp2 =
+        risk > 0
+          ? Number(
+              (Math.abs((isBuy ? entry + risk * 2 : entry - risk * 2) - entry) / risk).toFixed(2),
+            )
+          : 0;
+      const rrTp3 =
+        risk > 0
+          ? Number(
+              (Math.abs((isBuy ? entry + risk * 3 : entry - risk * 3) - entry) / risk).toFixed(2),
+            )
+          : 0;
 
       const id = randomBytes(8).toString("hex");
       await db.insert(analysesTable).values({
@@ -254,8 +267,8 @@ router.post("/", async (req, res) => {
         context: (plan.context as string) || "",
         timeframe: (plan.timeframe as string) || "",
         direction: plan.direction as string,
-        entry: entry,
-        sl: sl,
+        entry,
+        sl,
         tp1: plan.tp1 as number,
         tp2: plan.tp2 as number,
         tp3: plan.tp3 as number,
@@ -270,7 +283,7 @@ router.post("/", async (req, res) => {
         keyLevels: (plan.keyLevels as string) || "",
         priceMin: plan.priceMin as number,
         priceMax: plan.priceMax as number,
-        imageDataUrl,
+        imageDataUrl: primaryDataUrl,
         fvgsJson: plan.fvgs ? JSON.stringify(plan.fvgs) : null,
         cisdJson: plan.cisd ? JSON.stringify(plan.cisd) : null,
       });
@@ -278,7 +291,6 @@ router.post("/", async (req, res) => {
       plan = { ...plan, id };
     } catch (err) {
       req.log.error({ err }, "Failed to save analysis to database");
-      // Non-fatal: still return the plan even if save fails
     }
   }
 

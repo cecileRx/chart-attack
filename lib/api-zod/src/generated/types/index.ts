@@ -6,12 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./additionalChartImage";
 export * from "./analysisError";
 export * from "./analyzeChartRequest";
 export * from "./chartAnalysisResult";
 export * from "./chartAnalysisResultConfidence";
 export * from "./chartAnalysisResultDirection";
+export * from "./chartUploadUrlResponse";
 export * from "./deleteHistoryEntry200";
 export * from "./healthStatus";
 export * from "./historyEntry";
 export * from "./historyEntryDirection";
+export * from "./historyEntryOutcome";
+export * from "./updateHistoryOutcome200";
+export * from "./updateHistoryOutcomeBody";
+export * from "./updateHistoryOutcomeBodyOutcome";

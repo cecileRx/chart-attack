@@ -9,16 +9,23 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface ChartUploadUrlResponse {
+  /** Presigned GCS PUT URL — upload the image bytes directly here */
+  uploadURL: string;
+  /** GCS object name to pass to /analyze-chart as imageKey */
+  objectName: string;
+}
+
 export interface AdditionalChartImage {
-  /** Base64 data URL of the additional chart image */
-  imageDataUrl: string;
+  /** GCS object name returned by /analyze-chart/upload-url */
+  imageKey: string;
   /** Timeframe label for this chart (e.g. 1H, 4H, Daily) */
   timeframe: string;
 }
 
 export interface AnalyzeChartRequest {
-  /** Base64 data URL of the chart image */
-  imageDataUrl: string;
+  /** GCS object name returned by /analyze-chart/upload-url */
+  imageKey: string;
   /** Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily) */
   primaryTimeframe?: string;
   /** Optional additional chart images for multi-timeframe analysis */
@@ -70,10 +77,6 @@ export interface ChartAnalysisResult {
   keyLevels: string;
   /** Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed) */
   multiTimeframeContext?: string;
-  /** Fair Value Gaps detected on the chart (may be empty if none found) */
-  fvgs?: FVG[];
-  /** CISD Market Structure signal detected on the chart */
-  cisd?: CISDSignal;
 }
 
 export type HistoryEntryDirection =
@@ -84,8 +87,12 @@ export const HistoryEntryDirection = {
   SELL: "SELL",
 } as const;
 
+/**
+ * Optional trade outcome marked by the user
+ */
 export type HistoryEntryOutcome =
-  (typeof HistoryEntryOutcome)[keyof typeof HistoryEntryOutcome];
+  | (typeof HistoryEntryOutcome)[keyof typeof HistoryEntryOutcome]
+  | null;
 
 export const HistoryEntryOutcome = {
   profit: "profit",
@@ -114,21 +121,9 @@ export interface HistoryEntry {
   priceMin: number;
   priceMax: number;
   imageDataUrl: string;
-  outcome: HistoryEntryOutcome | null;
+  /** Optional trade outcome marked by the user */
+  outcome?: HistoryEntryOutcome;
   createdAt: string;
-}
-
-export interface FVG {
-  type: "bullish" | "bearish";
-  top: number;
-  bottom: number;
-  mitigated: boolean;
-}
-
-export interface CISDSignal {
-  type: "bullish" | "bearish" | "none";
-  triggerPrice: number | null;
-  description: string;
 }
 
 export interface AnalysisError {
@@ -136,5 +131,26 @@ export interface AnalysisError {
 }
 
 export type DeleteHistoryEntry200 = {
+  success: boolean;
+};
+
+/**
+ * profit, loss, or null to clear
+ */
+export type UpdateHistoryOutcomeBodyOutcome =
+  | (typeof UpdateHistoryOutcomeBodyOutcome)[keyof typeof UpdateHistoryOutcomeBodyOutcome]
+  | null;
+
+export const UpdateHistoryOutcomeBodyOutcome = {
+  profit: "profit",
+  loss: "loss",
+} as const;
+
+export type UpdateHistoryOutcomeBody = {
+  /** profit, loss, or null to clear */
+  outcome: UpdateHistoryOutcomeBodyOutcome;
+};
+
+export type UpdateHistoryOutcome200 = {
   success: boolean;
 };

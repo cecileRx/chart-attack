@@ -28,12 +28,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /analyze-chart/upload-url:
+    post:
+      operationId: requestChartUploadUrl
+      tags: [analysis]
+      summary: Request a presigned upload URL for a chart image
+      description: Returns a presigned GCS PUT URL and an object name. The client uploads the image directly to GCS, then passes the objectName to /analyze-chart.
+      responses:
+        "200":
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartUploadUrlResponse"
+        "500":
+          description: Failed to generate upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
   /analyze-chart:
     post:
       operationId: analyzeChartImage
       tags: [analysis]
       summary: Analyze a chart image using AI
-      description: Sends a chart image to the AI vision model and returns a structured trade plan
+      description: Sends a chart image (identified by objectName from /analyze-chart/upload-url) to the AI vision model and returns a structured trade plan
       requestBody:
         required: true
         content:
@@ -115,6 +134,61 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AnalysisError"
+  /history/{id}/outcome:
+    patch:
+      operationId: updateHistoryOutcome
+      tags: [history]
+      summary: Update the outcome of a history entry
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                outcome:
+                  type: string
+                  nullable: true
+                  enum: [profit, loss]
+                  description: "profit, loss, or null to clear"
+              required:
+                - outcome
+      responses:
+        "200":
+          description: Updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required:
+                  - success
+        "400":
+          description: Invalid outcome value
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
 components:
   schemas:
     HealthStatus:
@@ -124,24 +198,36 @@ components:
           type: string
       required:
         - status
+    ChartUploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+          description: Presigned GCS PUT URL — upload the image bytes directly here
+        objectName:
+          type: string
+          description: GCS object name to pass to /analyze-chart as imageKey
+      required:
+        - uploadURL
+        - objectName
     AdditionalChartImage:
       type: object
       properties:
-        imageDataUrl:
+        imageKey:
           type: string
-          description: Base64 data URL of the additional chart image
+          description: GCS object name returned by /analyze-chart/upload-url
         timeframe:
           type: string
           description: Timeframe label for this chart (e.g. 1H, 4H, Daily)
       required:
-        - imageDataUrl
+        - imageKey
         - timeframe
     AnalyzeChartRequest:
       type: object
       properties:
-        imageDataUrl:
+        imageKey:
           type: string
-          description: Base64 data URL of the chart image
+          description: GCS object name returned by /analyze-chart/upload-url
         primaryTimeframe:
           type: string
           description: Optional timeframe label for the primary chart (e.g. 1H, 4H, Daily)
@@ -151,7 +237,7 @@ components:
           items:
             $ref: "#/components/schemas/AdditionalChartImage"
       required:
-        - imageDataUrl
+        - imageKey
     ChartAnalysisResult:
       type: object
       properties:
@@ -261,6 +347,11 @@ components:
           type: number
         imageDataUrl:
           type: string
+        outcome:
+          type: string
+          nullable: true
+          enum: [profit, loss]
+          description: Optional trade outcome marked by the user
         createdAt:
           type: string
           format: date-time
