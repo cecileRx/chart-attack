@@ -124,7 +124,7 @@ function HistoryContent() {
 
   const handleOutcome = (id: string, outcome: 'profit' | 'loss' | null) => {
     outcomeMutation.mutate(
-      { id, outcome },
+      { id, data: { outcome } },
       {
         onSuccess: () => refetch(),
       }

@@ -63,6 +63,21 @@ export function ResultsPanel() {
     link.click();
   };
 
+  const handleExportEA = () => {
+    if (!currentPlan) return;
+    const symbol = (currentPlan.context || 'SYMBOL').split('(')[0].trim().replace(/[\s/]/g, '');
+    const line = [symbol, currentPlan.direction, currentPlan.entry, currentPlan.sl,
+                  currentPlan.tp1, currentPlan.tp2, currentPlan.tp3].join(',');
+    const content = `# ChartAttack EA plan: symbol,direction,entry,sl,tp1,tp2,tp3\n${line}\n`;
+    const blob = new Blob([content], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = 'chartattack_plan.csv';
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleNewAnalysis = () => {
     setCurrentPlan(null);
     setCurrentImage(null);
@@ -334,6 +349,15 @@ export function ResultsPanel() {
           >
             <Download className="w-4 h-4 mr-2" />
             Export Plan
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleExportEA}
+            className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+            data-testid="button-export-ea"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export EA Plan
           </Button>
         </div>
         <Button
