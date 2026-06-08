@@ -47,6 +47,7 @@ Critical rules:
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
+- The stop loss distance from entry (|entry - sl|) MUST be at least 300 price units. If the natural invalidation zone is closer, move the SL further to reach the 300-unit minimum.
 - Never use language like "guaranteed", "safe signal", or "winning trade".
 - If the chart is unclear or doesn't show price levels, still provide your best estimate and set confidence to "LOW".
 - FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
@@ -95,6 +96,7 @@ Critical rules:
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
+- The stop loss distance from entry (|entry - sl|) MUST be at least 300 price units. If the natural invalidation zone is closer, move the SL further to reach the 300-unit minimum.
 - Never use language like "guaranteed", "safe signal", or "winning trade".
 - If charts are unclear, still provide your best estimate and set confidence to "LOW".
 - FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
@@ -230,6 +232,18 @@ router.post("/", async (req, res) => {
     req.log.error({ content }, "Failed to parse AI response as JSON");
     res.status(500).json({ error: "AI returned an unexpected response format. Please try again." });
     return;
+  }
+
+  // Enforce minimum SL distance of 300 price units
+  const MIN_SL_DISTANCE = 300;
+  if (typeof plan.entry === "number" && typeof plan.sl === "number") {
+    const slDist = Math.abs(plan.entry - plan.sl);
+    if (slDist < MIN_SL_DISTANCE) {
+      const isBuy = plan.direction === "BUY";
+      plan.sl = isBuy
+        ? plan.entry - MIN_SL_DISTANCE
+        : plan.entry + MIN_SL_DISTANCE;
+    }
   }
 
   const auth = getAuth(req);
