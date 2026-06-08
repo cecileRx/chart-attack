@@ -28,21 +28,31 @@ const LOADING_STEPS = [
 /**
  * Resize + JPEG-compress a data URL so the API payload stays small.
  * Max width 1280 px, JPEG 82 % quality → typically 100–300 KB as base64.
+ * Always resolves — falls back to the original data URL on any error.
  */
 function compressImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * ratio);
-      const h = Math.round(img.height * ratio);
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      try {
+        const nw = img.naturalWidth || img.width;
+        const nh = img.naturalHeight || img.height;
+        if (!nw || !nh) { resolve(dataUrl); return; }
+        const ratio = Math.min(1, maxPx / Math.max(nw, nh));
+        const w = Math.max(1, Math.round(nw * ratio));
+        const h = Math.max(1, Math.round(nh * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(dataUrl); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch {
+        resolve(dataUrl); // fallback: send original
+      }
     };
-    img.onerror = () => resolve(dataUrl); // fallback: send original
+    img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
 }
@@ -161,20 +171,37 @@ export default function Analyze() {
       }
     }, 900);
 
-    // Safety timeout — stop the spinner after 120 s if the request never returns
+    // AbortController lets the safety timer cancel the in-flight fetch
+    const abortController = new AbortController();
+
+    // Safety timeout — abort + stop the spinner after 120 s
     const safetyTimer = setTimeout(() => {
+      abortController.abort();
       setIsAnalyzing(false);
       setApiError('Analysis timed out. Please try again.');
       clearInterval(interval);
     }, 120_000);
 
+    const cleanup = () => {
+      clearInterval(interval);
+      clearTimeout(safetyTimer);
+    };
+
     const effectivePrimaryTf = getEffectivePrimaryTimeframe();
 
     // Compress images before sending — reduces payload from ~5 MB to ~200 KB
-    const [compressedPrimary, ...compressedAdditional] = await Promise.all([
-      compressImage(currentImage),
-      ...additionalCharts.map(c => compressImage(c.imageDataUrl)),
-    ]);
+    let compressedPrimary: string;
+    let compressedAdditional: string[];
+    try {
+      [compressedPrimary, ...compressedAdditional] = await Promise.all([
+        compressImage(currentImage),
+        ...additionalCharts.map(c => compressImage(c.imageDataUrl)),
+      ]);
+    } catch {
+      // Fallback: use original images uncompressed
+      compressedPrimary = currentImage;
+      compressedAdditional = additionalCharts.map(c => c.imageDataUrl);
+    }
 
     const additionalImages = compressedAdditional.map((dataUrl, i) => ({
       imageDataUrl: dataUrl,
@@ -190,10 +217,7 @@ export default function Analyze() {
         },
       },
       {
-        onSettled: () => {
-          clearInterval(interval);
-          clearTimeout(safetyTimer);
-        },
+        onSettled: cleanup,
       },
     );
   };

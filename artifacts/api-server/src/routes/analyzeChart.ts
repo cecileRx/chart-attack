@@ -100,6 +100,8 @@ Critical rules:
 - CISD detection: A Change in State of Delivery (CISD) occurs when price sweeps through a swing high or low (liquidity grab), then aggressively reverses and breaks the structure in the opposite direction. A Bullish CISD follows a sweep of a swing low. A Bearish CISD follows a sweep of a swing high. If no clear CISD is visible, set type to "none" and triggerPrice to null.`;
 
 router.post("/", async (req, res) => {
+  req.log.info({ bodySize: JSON.stringify(req.body ?? {}).length }, "analyze-chart: handler reached");
+
   const imageDataUrl: unknown = req.body?.imageDataUrl;
   if (typeof imageDataUrl !== "string" || imageDataUrl.length < 10) {
     res.status(400).json({ error: "Invalid request: imageDataUrl is required" });
@@ -193,6 +195,8 @@ router.post("/", async (req, res) => {
       ? "Analyse all charts together for confluence. Base trade levels on the PRIMARY chart. Return the JSON trade plan including multiTimeframeContext."
       : "Analyze this financial chart. Read the price axis carefully and return the JSON trade plan.",
   });
+
+  req.log.info({ isMultiTimeframe }, "analyze-chart: calling OpenAI");
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.2",
