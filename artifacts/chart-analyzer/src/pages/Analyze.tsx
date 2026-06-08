@@ -25,6 +25,28 @@ const LOADING_STEPS = [
   "Generating trade plan...",
 ];
 
+/**
+ * Resize + JPEG-compress a data URL so the API payload stays small.
+ * Max width 1280 px, JPEG 82 % quality → typically 100–300 KB as base64.
+ */
+function compressImage(dataUrl: string, maxPx = 1280, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback: send original
+    img.src = dataUrl;
+  });
+}
+
 export default function Analyze() {
   const {
     currentImage, setCurrentImage,
@@ -120,7 +142,7 @@ export default function Analyze() {
     return primaryTimeframe;
   };
 
-  const runAnalysis = () => {
+  const runAnalysis = async () => {
     if (!currentImage || isAnalyzing) return;
 
     setIsAnalyzing(true);
@@ -139,24 +161,39 @@ export default function Analyze() {
       }
     }, 900);
 
+    // Safety timeout — stop the spinner after 120 s if the request never returns
+    const safetyTimer = setTimeout(() => {
+      setIsAnalyzing(false);
+      setApiError('Analysis timed out. Please try again.');
+      clearInterval(interval);
+    }, 120_000);
+
     const effectivePrimaryTf = getEffectivePrimaryTimeframe();
 
-    // Send all additional charts — server uses "Unknown" as fallback for missing timeframe
-    const additionalImages = additionalCharts.map(c => ({
-      imageDataUrl: c.imageDataUrl,
-      timeframe: c.timeframe.trim() || 'Unknown',
+    // Compress images before sending — reduces payload from ~5 MB to ~200 KB
+    const [compressedPrimary, ...compressedAdditional] = await Promise.all([
+      compressImage(currentImage),
+      ...additionalCharts.map(c => compressImage(c.imageDataUrl)),
+    ]);
+
+    const additionalImages = compressedAdditional.map((dataUrl, i) => ({
+      imageDataUrl: dataUrl,
+      timeframe: additionalCharts[i].timeframe.trim() || 'Unknown',
     }));
 
     analyzeChartMutation.mutate(
       {
         data: {
-          imageDataUrl: currentImage,
+          imageDataUrl: compressedPrimary,
           ...(effectivePrimaryTf ? { primaryTimeframe: effectivePrimaryTf } : {}),
           ...(additionalImages.length > 0 ? { additionalImages } : {}),
         },
       },
       {
-        onSettled: () => clearInterval(interval),
+        onSettled: () => {
+          clearInterval(interval);
+          clearTimeout(safetyTimer);
+        },
       },
     );
   };
