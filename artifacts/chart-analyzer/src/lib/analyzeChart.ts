@@ -60,6 +60,7 @@ function round(value: number, decimals: number): number {
 export function buildPlanFromAIResponse(
   imageDataUrl: string,
   ai: {
+    id?: string;
     context: string;
     timeframe: string;
     priceMin: number;
@@ -94,6 +95,7 @@ export function buildPlanFromAIResponse(
   const rrTp3 = calculateRiskReward(ai.entry, ai.sl, tp3);
 
   return {
+    id: ai.id,
     direction: ai.direction,
     entry: round(ai.entry, decimals),
     sl: round(ai.sl, decimals),
