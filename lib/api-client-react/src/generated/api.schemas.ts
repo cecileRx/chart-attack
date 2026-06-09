@@ -88,7 +88,7 @@ export const HistoryEntryDirection = {
 } as const;
 
 /**
- * Optional trade outcome marked by the user
+ * Legacy binary outcome — superseded by `exit`
  */
 export type HistoryEntryOutcome =
   | (typeof HistoryEntryOutcome)[keyof typeof HistoryEntryOutcome]
@@ -97,6 +97,21 @@ export type HistoryEntryOutcome =
 export const HistoryEntryOutcome = {
   profit: "profit",
   loss: "loss",
+} as const;
+
+/**
+ * Exit level reached — used to derive realized R
+ */
+export type HistoryEntryExit =
+  | (typeof HistoryEntryExit)[keyof typeof HistoryEntryExit]
+  | null;
+
+export const HistoryEntryExit = {
+  SL: "SL",
+  BE: "BE",
+  TP1: "TP1",
+  TP2: "TP2",
+  TP3: "TP3",
 } as const;
 
 export interface HistoryEntry {
@@ -121,8 +136,12 @@ export interface HistoryEntry {
   priceMin: number;
   priceMax: number;
   imageDataUrl: string;
-  /** Optional trade outcome marked by the user */
+  /** Legacy binary outcome — superseded by `exit` */
   outcome?: HistoryEntryOutcome;
+  /** Exit level reached — used to derive realized R */
+  exit?: HistoryEntryExit;
+  /** Precise realized R (e.g. reported by MT5); else derived from `exit` */
+  realizedR?: number | null;
   createdAt: string;
 }
 
@@ -135,20 +154,23 @@ export type DeleteHistoryEntry200 = {
 };
 
 /**
- * profit, loss, or null to clear
+ * Exit level (SL/BE/TP1/TP2/TP3) reached, or null to clear
  */
-export type UpdateHistoryOutcomeBodyOutcome =
-  | (typeof UpdateHistoryOutcomeBodyOutcome)[keyof typeof UpdateHistoryOutcomeBodyOutcome]
+export type UpdateHistoryOutcomeBodyExit =
+  | (typeof UpdateHistoryOutcomeBodyExit)[keyof typeof UpdateHistoryOutcomeBodyExit]
   | null;
 
-export const UpdateHistoryOutcomeBodyOutcome = {
-  profit: "profit",
-  loss: "loss",
+export const UpdateHistoryOutcomeBodyExit = {
+  SL: "SL",
+  BE: "BE",
+  TP1: "TP1",
+  TP2: "TP2",
+  TP3: "TP3",
 } as const;
 
 export type UpdateHistoryOutcomeBody = {
-  /** profit, loss, or null to clear */
-  outcome: UpdateHistoryOutcomeBodyOutcome;
+  /** Exit level (SL/BE/TP1/TP2/TP3) reached, or null to clear */
+  exit: UpdateHistoryOutcomeBodyExit;
 };
 
 export type UpdateHistoryOutcome200 = {

@@ -1,0 +1,581 @@
+From 1c22618ae85520aa4aaf9fb91b0d4000c472d73e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?C=C3=A9cile=20Rougnaux?= <jedixxxx@gmail.com>
+Date: Tue, 9 Jun 2026 14:38:31 +0200
+Subject: [PATCH] feat(history): R-based expectancy tracker
+
+Replace the binary profit/loss marking with exit-level grading
+(SL/BE/TP1/TP2/TP3) and compute true expectancy in R, modelling the
+EA's 50/30/20 partial + breakeven management (max ~1.7R).
+
+- db: add `exit` and `realized_r` columns to analyses
+- api-spec: HistoryEntry gains exit/realizedR; PATCH outcome -> exit
+- api-server: history PATCH validates and writes exit
+- chart-analyzer: new expectancy.ts (R model + stats); History page
+  shows Expectancy / Profit Factor / Win Rate / Total R + exit buttons
+
+`realized_r` is left for MT5 to fill later with the precise R, which
+overrides the modelled value.
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
+---
+ artifacts/api-server/src/routes/history.ts    |   9 +-
+ .../chart-analyzer/src/lib/expectancy.ts      |  77 +++++
+ .../chart-analyzer/src/pages/History.tsx      | 304 +++++++++---------
+ lib/api-spec/openapi.yaml                     |  21 +-
+ lib/db/src/schema/analyses.ts                 |   4 +-
+ 5 files changed, 260 insertions(+), 155 deletions(-)
+ create mode 100644 artifacts/chart-analyzer/src/lib/expectancy.ts
+
+diff --git a/artifacts/api-server/src/routes/history.ts b/artifacts/api-server/src/routes/history.ts
+index 6a00370..001d9da 100644
+--- a/artifacts/api-server/src/routes/history.ts
++++ b/artifacts/api-server/src/routes/history.ts
+@@ -58,16 +58,17 @@ router.patch("/:id/outcome", async (req, res) => {
+   }
+ 
+   const { id } = req.params;
+-  const { outcome } = req.body as { outcome: string | null };
++  const { exit } = req.body as { exit: string | null };
+ 
+-  if (outcome !== "profit" && outcome !== "loss" && outcome !== null) {
+-    res.status(400).json({ error: "outcome must be 'profit', 'loss', or null" });
++  const VALID_EXITS = ["SL", "BE", "TP1", "TP2", "TP3"];
++  if (exit !== null && !VALID_EXITS.includes(exit)) {
++    res.status(400).json({ error: "exit must be one of SL/BE/TP1/TP2/TP3, or null" });
+     return;
+   }
+ 
+   const updated = await db
+     .update(analysesTable)
+-    .set({ outcome })
++    .set({ exit })
+     .where(and(eq(analysesTable.id, id), eq(analysesTable.userId, userId)))
+     .returning();
+ 
+diff --git a/artifacts/chart-analyzer/src/lib/expectancy.ts b/artifacts/chart-analyzer/src/lib/expectancy.ts
+new file mode 100644
+index 0000000..ee578ed
+--- /dev/null
++++ b/artifacts/chart-analyzer/src/lib/expectancy.ts
+@@ -0,0 +1,77 @@
++// Expectancy model for ChartAttack trade plans.
++//
++// The EA manages every position the same way: risk = 1R on the full size, then
++// scales out 50% / 30% / 20% at TP1 / TP2 / TP3 and moves the stop to breakeven
++// after TP1. So the realized R is fully determined by the exit level reached:
++//
++//   SL  : full stop, no TP   -> -1.0R
++//   BE  : closed at entry     ->  0.0R
++//   TP1 : 50% @ +1R, rest BE  -> +0.5R
++//   TP2 : TP1 + 30% @ +2R     -> +1.1R   (0.5 + 0.6)
++//   TP3 : TP2 + 20% @ +3R     -> +1.7R   (0.5 + 0.6 + 0.6)
++//
++// NOTE: max realized is ~1.7R, NOT the "3:1" shown on the plan — only the last
++// 20% ever reaches 3R. These are model values; a precise `realizedR` (from MT5)
++// always overrides them.
++
++export type ExitLevel = 'SL' | 'BE' | 'TP1' | 'TP2' | 'TP3';
++
++export const EXIT_LEVELS: ExitLevel[] = ['SL', 'BE', 'TP1', 'TP2', 'TP3'];
++
++export const R_BY_EXIT: Record<ExitLevel, number> = {
++  SL: -1.0,
++  BE: 0,
++  TP1: 0.5,
++  TP2: 1.1,
++  TP3: 1.7,
++};
++
++export function isExitLevel(v: unknown): v is ExitLevel {
++  return typeof v === 'string' && (EXIT_LEVELS as string[]).includes(v);
++}
++
++/** Realized R for one entry: precise value if known (MT5), else the model value from the exit level, else null (ungraded). */
++export function entryR(e: { exit?: string | null; realizedR?: number | null }): number | null {
++  if (e.realizedR != null) return e.realizedR;
++  if (isExitLevel(e.exit)) return R_BY_EXIT[e.exit];
++  return null;
++}
++
++export interface ExpectancyStats {
++  graded: number;
++  wins: number;
++  losses: number;
++  breakeven: number;
++  winRate: number | null; // % of graded trades with R > 0
++  expectancy: number | null; // mean R per graded trade — the headline number
++  profitFactor: number | null; // gross win R / |gross loss R|
++  avgWinR: number | null;
++  avgLossR: number | null; // negative
++  totalR: number;
++}
++
++export function computeExpectancy(
++  entries: Array<{ exit?: string | null; realizedR?: number | null }>,
++): ExpectancyStats {
++  const rs = entries.map(entryR).filter((r): r is number => r != null);
++  const graded = rs.length;
++  const winRs = rs.filter((r) => r > 0);
++  const lossRs = rs.filter((r) => r < 0);
++  const grossWin = winRs.reduce((a, b) => a + b, 0);
++  const grossLoss = lossRs.reduce((a, b) => a + b, 0); // negative
++  const totalR = rs.reduce((a, b) => a + b, 0);
++
++  return {
++    graded,
++    wins: winRs.length,
++    losses: lossRs.length,
++    breakeven: rs.filter((r) => r === 0).length,
++    winRate: graded > 0 ? (winRs.length / graded) * 100 : null,
++    expectancy: graded > 0 ? totalR / graded : null,
++    profitFactor:
++      grossLoss !== 0 ? grossWin / Math.abs(grossLoss) : grossWin > 0 ? Infinity : null,
++    avgWinR: winRs.length > 0 ? grossWin / winRs.length : null,
++    avgLossR: lossRs.length > 0 ? grossLoss / lossRs.length : null,
++    totalR,
++  };
++}
+diff --git a/artifacts/chart-analyzer/src/pages/History.tsx b/artifacts/chart-analyzer/src/pages/History.tsx
+index 4826906..6066128 100644
+--- a/artifacts/chart-analyzer/src/pages/History.tsx
++++ b/artifacts/chart-analyzer/src/pages/History.tsx
+@@ -1,87 +1,103 @@
+ import React from 'react';
+ import { useApp } from '../components/AppContext';
+ import { Button } from '@/components/ui/button';
+-import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock, Trophy, Target, Info } from 'lucide-react';
++import { Trash2, ExternalLink, Calendar, TrendingUp, TrendingDown, Lock, BarChart2, Clock, Info } from 'lucide-react';
+ import { useLocation } from 'wouter';
+ import { Show } from '@clerk/react';
+ import { useGetUserHistory, useDeleteHistoryEntry, useUpdateHistoryOutcome } from '@workspace/api-client-react';
+ import type { HistoryEntry } from '@workspace/api-client-react';
+ import { buildPlanFromAIResponse } from '@/lib/analyzeChart';
++import { EXIT_LEVELS, R_BY_EXIT, entryR, computeExpectancy, type ExitLevel } from '@/lib/expectancy';
+ 
+-function WinRateBanner({ entries }: { entries: HistoryEntry[] }) {
+-  const graded = entries.filter((e) => e.outcome === 'profit' || e.outcome === 'loss');
+-  const profits = graded.filter((e) => e.outcome === 'profit').length;
+-  const losses = graded.filter((e) => e.outcome === 'loss').length;
+-  const winRate = graded.length > 0 ? Math.round((profits / graded.length) * 100) : null;
++function fmtR(r: number | null): string {
++  if (r === null) return '—';
++  if (!isFinite(r)) return '∞';
++  return `${r >= 0 ? '+' : ''}${r.toFixed(2)}R`;
++}
++
++function StatCard({ value, label, tone }: { value: string; label: string; tone?: 'pos' | 'neg' | 'neutral' }) {
++  const color =
++    tone === 'pos'
++      ? 'text-emerald-600 dark:text-emerald-400'
++      : tone === 'neg'
++      ? 'text-rose-600 dark:text-rose-400'
++      : 'text-slate-900 dark:text-white';
++  return (
++    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
++      <div className={`text-2xl font-bold ${color}`}>{value}</div>
++      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">{label}</div>
++    </div>
++  );
++}
+ 
++function ExpectancyBanner({ entries }: { entries: HistoryEntry[] }) {
+   if (entries.length === 0) return null;
++  const s = computeExpectancy(entries);
+ 
+   return (
+-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+-        <div className="text-2xl font-bold text-slate-900 dark:text-white">{entries.length}</div>
+-        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Analyses</div>
++    <div className="mb-8">
++      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
++        <StatCard
++          value={fmtR(s.expectancy)}
++          label="Expectancy / trade"
++          tone={s.expectancy == null ? 'neutral' : s.expectancy > 0 ? 'pos' : s.expectancy < 0 ? 'neg' : 'neutral'}
++        />
++        <StatCard
++          value={s.profitFactor == null ? '—' : !isFinite(s.profitFactor) ? '∞' : s.profitFactor.toFixed(2)}
++          label="Profit Factor"
++          tone={s.profitFactor == null ? 'neutral' : s.profitFactor >= 1 ? 'pos' : 'neg'}
++        />
++        <StatCard
++          value={s.winRate == null ? '—' : `${Math.round(s.winRate)}%`}
++          label="Win Rate"
++        />
++        <StatCard
++          value={fmtR(s.totalR)}
++          label="Total R"
++          tone={s.totalR > 0 ? 'pos' : s.totalR < 0 ? 'neg' : 'neutral'}
++        />
+       </div>
+-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+-        <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{profits}</div>
+-        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Profitable</div>
+-      </div>
+-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+-        <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">{losses}</div>
+-        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Loss</div>
+-      </div>
+-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center shadow-sm">
+-        {winRate !== null ? (
+-          <>
+-            <div className={`text-2xl font-bold ${winRate >= 50 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+-              {winRate}%
+-            </div>
+-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Win Rate</div>
+-          </>
+-        ) : (
+-          <>
+-            <div className="text-2xl font-bold text-slate-400 dark:text-slate-500">—</div>
+-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Win Rate</div>
+-          </>
+-        )}
++      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 mt-3 px-1 text-xs text-slate-500 dark:text-slate-400">
++        <span>{s.graded} trade{s.graded > 1 ? 's' : ''} noté{s.graded > 1 ? 's' : ''} / {entries.length}</span>
++        <span>Gain moyen: <span className="text-emerald-600 dark:text-emerald-400 font-medium">{fmtR(s.avgWinR)}</span></span>
++        <span>Perte moyenne: <span className="text-rose-600 dark:text-rose-400 font-medium">{fmtR(s.avgLossR)}</span></span>
++        <span className="opacity-70">R modélisé sur le partiel 50/30/20 (max ~1.7R)</span>
+       </div>
+     </div>
+   );
+ }
+ 
+-function OutcomeButtons({ entry, onUpdate }: { entry: HistoryEntry; onUpdate: (id: string, outcome: 'profit' | 'loss' | null) => void }) {
+-  const isPending = false;
+-
+-  const toggle = (value: 'profit' | 'loss') => {
+-    onUpdate(entry.id, entry.outcome === value ? null : value);
+-  };
++const EXIT_STYLE: Record<ExitLevel, { on: string; off: string }> = {
++  SL: { on: 'bg-rose-500 border-rose-500 text-white', off: 'border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20' },
++  BE: { on: 'bg-slate-400 border-slate-400 text-white', off: 'border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40' },
++  TP1: { on: 'bg-emerald-400 border-emerald-400 text-white', off: 'border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20' },
++  TP2: { on: 'bg-emerald-500 border-emerald-500 text-white', off: 'border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20' },
++  TP3: { on: 'bg-emerald-600 border-emerald-600 text-white', off: 'border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20' },
++};
+ 
++function ExitButtons({ entry, onSet }: { entry: HistoryEntry; onSet: (id: string, exit: ExitLevel | null) => void }) {
++  const current = entry.exit as ExitLevel | null | undefined;
+   return (
+-    <div className="flex gap-2 mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+-      <button
+-        onClick={() => toggle('profit')}
+-        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors border ${
+-          entry.outcome === 'profit'
+-            ? 'bg-emerald-500 border-emerald-500 text-white'
+-            : 'border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+-        }`}
+-        title="Mark as profit"
+-      >
+-        <Trophy className="w-3 h-3" />
+-        Profit
+-      </button>
+-      <button
+-        onClick={() => toggle('loss')}
+-        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-colors border ${
+-          entry.outcome === 'loss'
+-            ? 'bg-rose-500 border-rose-500 text-white'
+-            : 'border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20'
+-        }`}
+-        title="Mark as loss"
+-      >
+-        <Target className="w-3 h-3" />
+-        Loss
+-      </button>
++    <div className="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
++      <div className="flex gap-1.5">
++        {EXIT_LEVELS.map((lvl) => {
++          const active = current === lvl;
++          const st = EXIT_STYLE[lvl];
++          return (
++            <button
++              key={lvl}
++              onClick={() => onSet(entry.id, active ? null : lvl)}
++              className={`flex-1 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors ${active ? st.on : st.off}`}
++              title={`${lvl} → ${fmtR(R_BY_EXIT[lvl])}`}
++            >
++              {lvl}
++            </button>
++          );
++        })}
++      </div>
++      <div className="text-center text-[11px] mt-1.5 text-slate-400 dark:text-slate-500">
++        {current ? `Résultat: ${fmtR(entryR(entry))}` : 'Marque la sortie atteinte'}
++      </div>
+     </div>
+   );
+ }
+@@ -92,7 +108,7 @@ function HistoryContent() {
+ 
+   const { data: entries = [], isLoading, refetch } = useGetUserHistory();
+   const deleteMutation = useDeleteHistoryEntry();
+-  const outcomeMutation = useUpdateHistoryOutcome();
++  const exitMutation = useUpdateHistoryOutcome();
+ 
+   const handleReview = (entry: HistoryEntry) => {
+     const plan = buildPlanFromAIResponse(entry.imageDataUrl, {
+@@ -122,13 +138,8 @@ function HistoryContent() {
+     deleteMutation.mutate({ id }, { onSuccess: () => refetch() });
+   };
+ 
+-  const handleOutcome = (id: string, outcome: 'profit' | 'loss' | null) => {
+-    outcomeMutation.mutate(
+-      { id, outcome },
+-      {
+-        onSuccess: () => refetch(),
+-      }
+-    );
++  const handleExit = (id: string, exit: ExitLevel | null) => {
++    exitMutation.mutate({ id, exit }, { onSuccess: () => refetch() });
+   };
+ 
+   if (isLoading) {
+@@ -144,17 +155,17 @@ function HistoryContent() {
+       <div className="flex items-center justify-between mb-6">
+         <div>
+           <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Analysis History</h1>
+-          <p className="text-slate-500 dark:text-slate-400">Your saved chart analyses — only visible to you. Mark each trade to track your win rate.</p>
++          <p className="text-slate-500 dark:text-slate-400">Marque le niveau de sortie de chaque trade — l'expectancy en R se calcule toute seule.</p>
+         </div>
+       </div>
+ 
+-      <WinRateBanner entries={entries} />
++      <ExpectancyBanner entries={entries} />
+ 
+       {entries.length > 0 && (
+         <div className="flex items-start gap-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-4 py-3 mb-6 text-sm text-blue-700 dark:text-blue-300">
+           <Info className="w-4 h-4 mt-0.5 shrink-0 opacity-70" />
+           <span>
+-            The more trades you mark as Profit or Loss, the more ChartAttack learns from your real results and refines its analyses to match your trading style.
++            L'expectancy (R moyen par trade) est le seul juge de l'edge : positive = le système gagne sur la durée, négative = il perd, quel que soit le win rate.
+           </span>
+         </div>
+       )}
+@@ -174,84 +185,89 @@ function HistoryContent() {
+         </div>
+       ) : (
+         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+-          {entries.map((entry) => (
+-            <div
+-              key={entry.id}
+-              className={`bg-white dark:bg-slate-900 rounded-xl border overflow-hidden shadow-sm flex flex-col group transition-colors ${
+-                entry.outcome === 'profit'
+-                  ? 'border-emerald-300 dark:border-emerald-700'
+-                  : entry.outcome === 'loss'
+-                  ? 'border-rose-300 dark:border-rose-700'
+-                  : 'border-slate-200 dark:border-slate-800'
+-              }`}
+-            >
+-              <div className="h-40 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
+-                <img
+-                  src={entry.imageDataUrl}
+-                  alt="Chart thumbnail"
+-                  className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+-                />
+-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-slate-900/40 transition-opacity">
+-                  <Button variant="secondary" onClick={() => handleReview(entry)}>
+-                    <ExternalLink className="w-4 h-4 mr-2" />
+-                    Review Plan
+-                  </Button>
+-                </div>
+-                <button
+-                  onClick={() => handleDelete(entry.id)}
+-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-900/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-600"
+-                  title="Delete"
+-                >
+-                  <Trash2 className="w-3.5 h-3.5" />
+-                </button>
+-                {entry.outcome && (
+-                  <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-bold ${entry.outcome === 'profit' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+-                    {entry.outcome === 'profit' ? 'PROFIT' : 'LOSS'}
++          {entries.map((entry) => {
++            const r = entryR(entry);
++            const borderTone =
++              r == null
++                ? 'border-slate-200 dark:border-slate-800'
++                : r > 0
++                ? 'border-emerald-300 dark:border-emerald-700'
++                : r < 0
++                ? 'border-rose-300 dark:border-rose-700'
++                : 'border-slate-300 dark:border-slate-600';
++            return (
++              <div
++                key={entry.id}
++                className={`bg-white dark:bg-slate-900 rounded-xl border overflow-hidden shadow-sm flex flex-col group transition-colors ${borderTone}`}
++              >
++                <div className="h-40 bg-slate-100 dark:bg-slate-800 relative overflow-hidden">
++                  <img
++                    src={entry.imageDataUrl}
++                    alt="Chart thumbnail"
++                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
++                  />
++                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-slate-900/40 transition-opacity">
++                    <Button variant="secondary" onClick={() => handleReview(entry)}>
++                      <ExternalLink className="w-4 h-4 mr-2" />
++                      Review Plan
++                    </Button>
+                   </div>
+-                )}
+-              </div>
++                  <button
++                    onClick={() => handleDelete(entry.id)}
++                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-slate-900/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-rose-600"
++                    title="Delete"
++                  >
++                    <Trash2 className="w-3.5 h-3.5" />
++                  </button>
++                  {entry.exit && (
++                    <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-xs font-bold ${r != null && r > 0 ? 'bg-emerald-500 text-white' : r != null && r < 0 ? 'bg-rose-500 text-white' : 'bg-slate-400 text-white'}`}>
++                      {entry.exit} · {fmtR(r)}
++                    </div>
++                  )}
++                </div>
+ 
+-              <div className="p-4 flex-1 flex flex-col">
+-                {entry.context && (
+-                  <div className="flex items-center gap-1.5 mb-2">
+-                    <BarChart2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+-                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{entry.context}</span>
+-                    {entry.timeframe && entry.timeframe !== 'Unknown' && (
+-                      <>
+-                        <Clock className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
+-                        <span className="text-xs text-slate-500 dark:text-slate-400">{entry.timeframe}</span>
+-                      </>
+-                    )}
+-                  </div>
+-                )}
++                <div className="p-4 flex-1 flex flex-col">
++                  {entry.context && (
++                    <div className="flex items-center gap-1.5 mb-2">
++                      <BarChart2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
++                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{entry.context}</span>
++                      {entry.timeframe && entry.timeframe !== 'Unknown' && (
++                        <>
++                          <Clock className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
++                          <span className="text-xs text-slate-500 dark:text-slate-400">{entry.timeframe}</span>
++                        </>
++                      )}
++                    </div>
++                  )}
+ 
+-                <div className="flex items-center justify-between mb-3">
+-                  <div className={`px-2 py-1 rounded text-xs font-bold flex items-center ${entry.direction === 'BUY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'}`}>
+-                    {entry.direction === 'BUY' ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
+-                    {entry.direction}
+-                  </div>
+-                  <div className="text-sm font-mono font-medium text-slate-700 dark:text-slate-300">
+-                    {entry.rrRatio}:1 RR
++                  <div className="flex items-center justify-between mb-3">
++                    <div className={`px-2 py-1 rounded text-xs font-bold flex items-center ${entry.direction === 'BUY' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'}`}>
++                      {entry.direction === 'BUY' ? <TrendingUp className="w-3 h-3 mr-1" /> : <TrendingDown className="w-3 h-3 mr-1" />}
++                      {entry.direction}
++                    </div>
++                    <div className="text-sm font-mono font-medium text-slate-700 dark:text-slate-300">
++                      {entry.rrRatio}:1 RR
++                    </div>
+                   </div>
+-                </div>
+ 
+-                <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center">
+-                  <Calendar className="w-3 h-3 mr-1" />
+-                  {new Date(entry.createdAt).toLocaleString()}
+-                </div>
++                  <div className="text-xs text-slate-500 dark:text-slate-400 mb-3 flex items-center">
++                    <Calendar className="w-3 h-3 mr-1" />
++                    {new Date(entry.createdAt).toLocaleString()}
++                  </div>
+ 
+-                <button
+-                  className="w-full text-left text-blue-600 dark:text-blue-400 text-xs flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800 hover:opacity-80 transition-opacity mb-1"
+-                  onClick={() => handleReview(entry)}
+-                >
+-                  Open details
+-                  <ExternalLink className="w-3.5 h-3.5" />
+-                </button>
++                  <button
++                    className="w-full text-left text-blue-600 dark:text-blue-400 text-xs flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800 hover:opacity-80 transition-opacity mb-1"
++                    onClick={() => handleReview(entry)}
++                  >
++                    Open details
++                    <ExternalLink className="w-3.5 h-3.5" />
++                  </button>
+ 
+-                <OutcomeButtons entry={entry} onUpdate={handleOutcome} />
++                  <ExitButtons entry={entry} onSet={handleExit} />
++                </div>
+               </div>
+-            </div>
+-          ))}
++            );
++          })}
+         </div>
+       )}
+     </div>
+diff --git a/lib/api-spec/openapi.yaml b/lib/api-spec/openapi.yaml
+index 7857785..9a8babe 100644
+--- a/lib/api-spec/openapi.yaml
++++ b/lib/api-spec/openapi.yaml
+@@ -138,7 +138,7 @@ paths:
+     patch:
+       operationId: updateHistoryOutcome
+       tags: [history]
+-      summary: Update the outcome of a history entry
++      summary: Update the exit level of a history entry
+       parameters:
+         - name: id
+           in: path
+@@ -152,13 +152,13 @@ paths:
+             schema:
+               type: object
+               properties:
+-                outcome:
++                exit:
+                   type: string
+                   nullable: true
+-                  enum: [profit, loss]
+-                  description: "profit, loss, or null to clear"
++                  enum: [SL, BE, TP1, TP2, TP3]
++                  description: "Exit level (SL/BE/TP1/TP2/TP3) reached, or null to clear"
+               required:
+-                - outcome
++                - exit
+       responses:
+         "200":
+           description: Updated successfully
+@@ -351,7 +351,16 @@ components:
+           type: string
+           nullable: true
+           enum: [profit, loss]
+-          description: Optional trade outcome marked by the user
++          description: Legacy binary outcome — superseded by `exit`
++        exit:
++          type: string
++          nullable: true
++          enum: [SL, BE, TP1, TP2, TP3]
++          description: Exit level reached — used to derive realized R
++        realizedR:
++          type: number
++          nullable: true
++          description: Precise realized R (e.g. reported by MT5); else derived from `exit`
+         createdAt:
+           type: string
+           format: date-time
+diff --git a/lib/db/src/schema/analyses.ts b/lib/db/src/schema/analyses.ts
+index 18e253f..0d06c09 100644
+--- a/lib/db/src/schema/analyses.ts
++++ b/lib/db/src/schema/analyses.ts
+@@ -23,7 +23,9 @@ export const analysesTable = pgTable("analyses", {
+   priceMin: real("price_min").notNull(),
+   priceMax: real("price_max").notNull(),
+   imageDataUrl: text("image_data_url").notNull(),
+-  outcome: text("outcome"),
++  outcome: text("outcome"), // legacy binary profit/loss — kept for old rows, superseded by `exit`
++  exit: text("exit"), // 'SL' | 'BE' | 'TP1' | 'TP2' | 'TP3' | null — exit level reached
++  realizedR: real("realized_r"), // precise realized R (e.g. reported by MT5); else derived from `exit`
+   fvgsJson: text("fvgs_json"),
+   cisdJson: text("cisd_json"),
+   createdAt: timestamp("created_at").notNull().defaultNow(),
+-- 
+2.37.1 (Apple Git-137.1)
+

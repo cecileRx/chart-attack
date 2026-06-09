@@ -126,7 +126,17 @@ export const GetUserHistoryResponseItem = zod.object({
   outcome: zod
     .enum(["profit", "loss"])
     .nullish()
-    .describe("Optional trade outcome marked by the user"),
+    .describe("Legacy binary outcome — superseded by `exit`"),
+  exit: zod
+    .enum(["SL", "BE", "TP1", "TP2", "TP3"])
+    .nullish()
+    .describe("Exit level reached — used to derive realized R"),
+  realizedR: zod
+    .number()
+    .nullish()
+    .describe(
+      "Precise realized R (e.g. reported by MT5); else derived from `exit`",
+    ),
   createdAt: zod.coerce.date(),
 });
 export const GetUserHistoryResponse = zod.array(GetUserHistoryResponseItem);
@@ -143,17 +153,17 @@ export const DeleteHistoryEntryResponse = zod.object({
 });
 
 /**
- * @summary Update the outcome of a history entry
+ * @summary Update the exit level of a history entry
  */
 export const UpdateHistoryOutcomeParams = zod.object({
   id: zod.coerce.string(),
 });
 
 export const UpdateHistoryOutcomeBody = zod.object({
-  outcome: zod
-    .enum(["profit", "loss"])
+  exit: zod
+    .enum(["SL", "BE", "TP1", "TP2", "TP3"])
     .nullable()
-    .describe("profit, loss, or null to clear"),
+    .describe("Exit level (SL\/BE\/TP1\/TP2\/TP3) reached, or null to clear"),
 });
 
 export const UpdateHistoryOutcomeResponse = zod.object({

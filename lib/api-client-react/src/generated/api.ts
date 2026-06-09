@@ -443,7 +443,7 @@ export const useDeleteHistoryEntry = <
 };
 
 /**
- * @summary Update the outcome of a history entry
+ * @summary Update the exit level of a history entry
  */
 export const getUpdateHistoryOutcomeUrl = (id: string) => {
   return `/api/history/${id}/outcome`;
@@ -508,7 +508,7 @@ export type UpdateHistoryOutcomeMutationBody =
 export type UpdateHistoryOutcomeMutationError = ErrorType<AnalysisError>;
 
 /**
- * @summary Update the outcome of a history entry
+ * @summary Update the exit level of a history entry
  */
 export const useUpdateHistoryOutcome = <
   TError = ErrorType<AnalysisError>,

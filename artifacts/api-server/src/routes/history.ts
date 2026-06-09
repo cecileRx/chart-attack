@@ -58,16 +58,17 @@ router.patch("/:id/outcome", async (req, res) => {
   }
 
   const { id } = req.params;
-  const { outcome } = req.body as { outcome: string | null };
+  const { exit } = req.body as { exit: string | null };
 
-  if (outcome !== "profit" && outcome !== "loss" && outcome !== null) {
-    res.status(400).json({ error: "outcome must be 'profit', 'loss', or null" });
+  const VALID_EXITS = ["SL", "BE", "TP1", "TP2", "TP3"];
+  if (exit !== null && !VALID_EXITS.includes(exit)) {
+    res.status(400).json({ error: "exit must be one of SL/BE/TP1/TP2/TP3, or null" });
     return;
   }
 
   const updated = await db
     .update(analysesTable)
-    .set({ outcome })
+    .set({ exit })
     .where(and(eq(analysesTable.id, id), eq(analysesTable.userId, userId)))
     .returning();
 

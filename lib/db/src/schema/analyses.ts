@@ -23,7 +23,9 @@ export const analysesTable = pgTable("analyses", {
   priceMin: real("price_min").notNull(),
   priceMax: real("price_max").notNull(),
   imageDataUrl: text("image_data_url").notNull(),
-  outcome: text("outcome"),
+  outcome: text("outcome"), // legacy binary profit/loss — kept for old rows, superseded by `exit`
+  exit: text("exit"), // 'SL' | 'BE' | 'TP1' | 'TP2' | 'TP3' | null — exit level reached
+  realizedR: real("realized_r"), // precise realized R (e.g. reported by MT5); else derived from `exit`
   fvgsJson: text("fvgs_json"),
   cisdJson: text("cisd_json"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

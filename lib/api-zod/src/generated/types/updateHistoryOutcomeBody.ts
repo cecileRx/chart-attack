@@ -5,9 +5,9 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { UpdateHistoryOutcomeBodyOutcome } from "./updateHistoryOutcomeBodyOutcome";
+import type { UpdateHistoryOutcomeBodyExit } from "./updateHistoryOutcomeBodyExit";
 
 export type UpdateHistoryOutcomeBody = {
-  /** profit, loss, or null to clear */
-  outcome: UpdateHistoryOutcomeBodyOutcome;
+  /** Exit level (SL/BE/TP1/TP2/TP3) reached, or null to clear */
+  exit: UpdateHistoryOutcomeBodyExit;
 };

@@ -7,7 +7,7 @@
  */
 
 /**
- * Optional trade outcome marked by the user
+ * Legacy binary outcome — superseded by `exit`
  */
 export type HistoryEntryOutcome =
   | (typeof HistoryEntryOutcome)[keyof typeof HistoryEntryOutcome]

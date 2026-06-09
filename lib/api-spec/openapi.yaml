@@ -138,7 +138,7 @@ paths:
     patch:
       operationId: updateHistoryOutcome
       tags: [history]
-      summary: Update the outcome of a history entry
+      summary: Update the exit level of a history entry
       parameters:
         - name: id
           in: path
@@ -152,13 +152,13 @@ paths:
             schema:
               type: object
               properties:
-                outcome:
+                exit:
                   type: string
                   nullable: true
-                  enum: [profit, loss]
-                  description: "profit, loss, or null to clear"
+                  enum: [SL, BE, TP1, TP2, TP3]
+                  description: "Exit level (SL/BE/TP1/TP2/TP3) reached, or null to clear"
               required:
-                - outcome
+                - exit
       responses:
         "200":
           description: Updated successfully
@@ -351,7 +351,16 @@ components:
           type: string
           nullable: true
           enum: [profit, loss]
-          description: Optional trade outcome marked by the user
+          description: Legacy binary outcome — superseded by `exit`
+        exit:
+          type: string
+          nullable: true
+          enum: [SL, BE, TP1, TP2, TP3]
+          description: Exit level reached — used to derive realized R
+        realizedR:
+          type: number
+          nullable: true
+          description: Precise realized R (e.g. reported by MT5); else derived from `exit`
         createdAt:
           type: string
           format: date-time

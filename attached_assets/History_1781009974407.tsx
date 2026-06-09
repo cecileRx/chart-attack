@@ -139,7 +139,7 @@ function HistoryContent() {
   };
 
   const handleExit = (id: string, exit: ExitLevel | null) => {
-    exitMutation.mutate({ id, data: { exit } }, { onSuccess: () => refetch() });
+    exitMutation.mutate({ id, exit }, { onSuccess: () => refetch() });
   };
 
   if (isLoading) {

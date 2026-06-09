@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { HistoryEntryDirection } from "./historyEntryDirection";
+import type { HistoryEntryExit } from "./historyEntryExit";
 import type { HistoryEntryOutcome } from "./historyEntryOutcome";
 
 export interface HistoryEntry {
@@ -30,7 +31,11 @@ export interface HistoryEntry {
   priceMin: number;
   priceMax: number;
   imageDataUrl: string;
-  /** Optional trade outcome marked by the user */
+  /** Legacy binary outcome — superseded by `exit` */
   outcome?: HistoryEntryOutcome;
+  /** Exit level reached — used to derive realized R */
+  exit?: HistoryEntryExit;
+  /** Precise realized R (e.g. reported by MT5); else derived from `exit` */
+  realizedR?: number | null;
   createdAt: Date;
 }
