@@ -67,8 +67,9 @@ export function ResultsPanel() {
     if (!currentPlan) return;
     const symbol = (currentPlan.context || 'SYMBOL').split('(')[0].trim().replace(/[\s/]/g, '');
     const line = [symbol, currentPlan.direction, currentPlan.entry, currentPlan.sl,
-                  currentPlan.tp1, currentPlan.tp2, currentPlan.tp3].join(',');
-    const content = `# ChartAttack EA plan: symbol,direction,entry,sl,tp1,tp2,tp3\n${line}\n`;
+                  currentPlan.tp1, currentPlan.tp2, currentPlan.tp3,
+                  currentPlan.id ?? ''].join(',');
+    const content = `# ChartAttack EA plan: symbol,direction,entry,sl,tp1,tp2,tp3,id\n${line}\n`;
     const blob = new Blob([content], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

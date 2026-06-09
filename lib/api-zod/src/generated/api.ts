@@ -169,3 +169,48 @@ export const UpdateHistoryOutcomeBody = zod.object({
 export const UpdateHistoryOutcomeResponse = zod.object({
   success: zod.boolean(),
 });
+
+/**
+ * @summary Check whether the current user has an active API key
+ */
+export const GetApiKeyStatusResponse = zod.object({
+  hasKey: zod.boolean(),
+  createdAt: zod.coerce.date().nullable(),
+});
+
+/**
+ * @summary Generate a new API key (replaces existing — returned exactly once)
+ */
+export const GenerateApiKeyResponse = zod.object({
+  key: zod
+    .string()
+    .describe(
+      "Raw API key (ca_<32 hex>) — shown exactly once, never stored in plain text",
+    ),
+});
+
+/**
+ * @summary Record the realized exit and R for an analysis (X-API-Key auth, no Clerk)
+ */
+export const IngestOutcomeBody = zod.object({
+  id: zod.string().describe("Analysis ID (8th field from the EA plan CSV)"),
+  exit: zod
+    .enum(["SL", "BE", "TP1", "TP2", "TP3"])
+    .describe("Exit level reached"),
+  realizedR: zod
+    .number()
+    .describe("Precise realized R (profit \/ 1R-risk) calculated by the EA"),
+  profit: zod
+    .number()
+    .nullish()
+    .describe("Account-currency profit (optional, for logging)"),
+  symbol: zod.string().nullish().describe("Instrument symbol (optional)"),
+  closedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe("Trade close time (optional, ISO 8601)"),
+});
+
+export const IngestOutcomeResponse = zod.object({
+  success: zod.boolean(),
+});

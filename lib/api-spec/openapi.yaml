@@ -14,6 +14,10 @@ tags:
     description: Chart analysis operations
   - name: history
     description: User analysis history
+  - name: keys
+    description: API key management
+  - name: ingest
+    description: Machine-to-machine result ingestion (EA / MT5)
 paths:
   /healthz:
     get:
@@ -185,6 +189,83 @@ paths:
                 $ref: "#/components/schemas/AnalysisError"
         "404":
           description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+  /keys/status:
+    get:
+      operationId: getApiKeyStatus
+      tags: [keys]
+      summary: Check whether the current user has an active API key
+      responses:
+        "200":
+          description: API key status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyStatus"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+  /keys:
+    post:
+      operationId: generateApiKey
+      tags: [keys]
+      summary: Generate a new API key (replaces existing — returned exactly once)
+      responses:
+        "200":
+          description: Raw API key (shown once — store it immediately)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKeyResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+  /ingest/outcome:
+    post:
+      operationId: ingestOutcome
+      tags: [ingest]
+      summary: Record the realized exit and R for an analysis (X-API-Key auth, no Clerk)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IngestOutcomeRequest"
+      responses:
+        "200":
+          description: Recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                required:
+                  - success
+        "400":
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "401":
+          description: Invalid or missing X-API-Key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisError"
+        "404":
+          description: Analysis not found for this user
           content:
             application/json:
               schema:
@@ -387,6 +468,56 @@ components:
         - priceMax
         - imageDataUrl
         - createdAt
+    ApiKeyStatus:
+      type: object
+      properties:
+        hasKey:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - hasKey
+        - createdAt
+    ApiKeyResponse:
+      type: object
+      properties:
+        key:
+          type: string
+          description: "Raw API key (ca_<32 hex>) — shown exactly once, never stored in plain text"
+      required:
+        - key
+    IngestOutcomeRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Analysis ID (8th field from the EA plan CSV)
+        exit:
+          type: string
+          enum: [SL, BE, TP1, TP2, TP3]
+          description: Exit level reached
+        realizedR:
+          type: number
+          description: Precise realized R (profit / 1R-risk) calculated by the EA
+        profit:
+          type: number
+          nullable: true
+          description: Account-currency profit (optional, for logging)
+        symbol:
+          type: string
+          nullable: true
+          description: Instrument symbol (optional)
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Trade close time (optional, ISO 8601)
+      required:
+        - id
+        - exit
+        - realizedR
     AnalysisError:
       type: object
       properties:

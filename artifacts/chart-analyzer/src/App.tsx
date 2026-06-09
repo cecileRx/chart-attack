@@ -6,6 +6,7 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/not-found";
+import Settings from "@/pages/Settings";
 
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppProvider } from "@/components/AppContext";
@@ -115,6 +116,7 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/analyze" component={Analyze} />
       <Route path="/history" component={History} />
+      <Route path="/settings" component={Settings} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route component={NotFound} />

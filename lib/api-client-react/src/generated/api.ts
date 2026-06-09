@@ -19,11 +19,15 @@ import type {
 import type {
   AnalysisError,
   AnalyzeChartRequest,
+  ApiKeyResponse,
+  ApiKeyStatus,
   ChartAnalysisResult,
   ChartUploadUrlResponse,
   DeleteHistoryEntry200,
   HealthStatus,
   HistoryEntry,
+  IngestOutcome200,
+  IngestOutcomeRequest,
   UpdateHistoryOutcome200,
   UpdateHistoryOutcomeBody,
 } from "./api.schemas";
@@ -528,4 +532,246 @@ export const useUpdateHistoryOutcome = <
   TContext
 > => {
   return useMutation(getUpdateHistoryOutcomeMutationOptions(options));
+};
+
+/**
+ * @summary Check whether the current user has an active API key
+ */
+export const getGetApiKeyStatusUrl = () => {
+  return `/api/keys/status`;
+};
+
+export const getApiKeyStatus = async (
+  options?: RequestInit,
+): Promise<ApiKeyStatus> => {
+  return customFetch<ApiKeyStatus>(getGetApiKeyStatusUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetApiKeyStatusQueryKey = () => {
+  return [`/api/keys/status`] as const;
+};
+
+export const getGetApiKeyStatusQueryOptions = <
+  TData = Awaited<ReturnType<typeof getApiKeyStatus>>,
+  TError = ErrorType<AnalysisError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getApiKeyStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetApiKeyStatusQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getApiKeyStatus>>> = ({
+    signal,
+  }) => getApiKeyStatus({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getApiKeyStatus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetApiKeyStatusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getApiKeyStatus>>
+>;
+export type GetApiKeyStatusQueryError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Check whether the current user has an active API key
+ */
+
+export function useGetApiKeyStatus<
+  TData = Awaited<ReturnType<typeof getApiKeyStatus>>,
+  TError = ErrorType<AnalysisError>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getApiKeyStatus>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetApiKeyStatusQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate a new API key (replaces existing — returned exactly once)
+ */
+export const getGenerateApiKeyUrl = () => {
+  return `/api/keys`;
+};
+
+export const generateApiKey = async (
+  options?: RequestInit,
+): Promise<ApiKeyResponse> => {
+  return customFetch<ApiKeyResponse>(getGenerateApiKeyUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGenerateApiKeyMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateApiKey>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateApiKey>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["generateApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateApiKey>>,
+    void
+  > = () => {
+    return generateApiKey(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateApiKey>>
+>;
+
+export type GenerateApiKeyMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Generate a new API key (replaces existing — returned exactly once)
+ */
+export const useGenerateApiKey = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateApiKey>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateApiKey>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getGenerateApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Record the realized exit and R for an analysis (X-API-Key auth, no Clerk)
+ */
+export const getIngestOutcomeUrl = () => {
+  return `/api/ingest/outcome`;
+};
+
+export const ingestOutcome = async (
+  ingestOutcomeRequest: IngestOutcomeRequest,
+  options?: RequestInit,
+): Promise<IngestOutcome200> => {
+  return customFetch<IngestOutcome200>(getIngestOutcomeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(ingestOutcomeRequest),
+  });
+};
+
+export const getIngestOutcomeMutationOptions = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestOutcome>>,
+    TError,
+    { data: BodyType<IngestOutcomeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof ingestOutcome>>,
+  TError,
+  { data: BodyType<IngestOutcomeRequest> },
+  TContext
+> => {
+  const mutationKey = ["ingestOutcome"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof ingestOutcome>>,
+    { data: BodyType<IngestOutcomeRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return ingestOutcome(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IngestOutcomeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof ingestOutcome>>
+>;
+export type IngestOutcomeMutationBody = BodyType<IngestOutcomeRequest>;
+export type IngestOutcomeMutationError = ErrorType<AnalysisError>;
+
+/**
+ * @summary Record the realized exit and R for an analysis (X-API-Key auth, no Clerk)
+ */
+export const useIngestOutcome = <
+  TError = ErrorType<AnalysisError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof ingestOutcome>>,
+    TError,
+    { data: BodyType<IngestOutcomeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof ingestOutcome>>,
+  TError,
+  { data: BodyType<IngestOutcomeRequest> },
+  TContext
+> => {
+  return useMutation(getIngestOutcomeMutationOptions(options));
 };

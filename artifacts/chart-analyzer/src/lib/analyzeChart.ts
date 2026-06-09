@@ -1,4 +1,5 @@
 export interface TradePlan {
+  id?: string;           // DB id — set after the analysis is saved (user signed in)
   direction: 'BUY' | 'SELL';
   entry: number;
   sl: number;

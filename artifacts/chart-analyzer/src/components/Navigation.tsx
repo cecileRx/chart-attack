@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
-import { Clock, Moon, Sun, LogOut, LogIn, UserPlus, ChevronDown } from 'lucide-react';
+import { Clock, Moon, Sun, LogOut, LogIn, UserPlus, ChevronDown, Settings } from 'lucide-react';
 import { SharkIcon } from './SharkIcon';
 import { useTheme } from './ThemeProvider';
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,13 @@ function UserMenu() {
             {user?.emailAddresses?.[0]?.emailAddress}
           </p>
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <a href={`${basePath}/settings`} className="cursor-pointer">
+            <Settings className="w-4 h-4 mr-2" />
+            Réglages
+          </a>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-rose-600 dark:text-rose-400 cursor-pointer"

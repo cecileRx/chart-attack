@@ -145,6 +145,45 @@ export interface HistoryEntry {
   createdAt: string;
 }
 
+export interface ApiKeyStatus {
+  hasKey: boolean;
+  createdAt: string | null;
+}
+
+export interface ApiKeyResponse {
+  /** Raw API key (ca_<32 hex>) — shown exactly once, never stored in plain text */
+  key: string;
+}
+
+/**
+ * Exit level reached
+ */
+export type IngestOutcomeRequestExit =
+  (typeof IngestOutcomeRequestExit)[keyof typeof IngestOutcomeRequestExit];
+
+export const IngestOutcomeRequestExit = {
+  SL: "SL",
+  BE: "BE",
+  TP1: "TP1",
+  TP2: "TP2",
+  TP3: "TP3",
+} as const;
+
+export interface IngestOutcomeRequest {
+  /** Analysis ID (8th field from the EA plan CSV) */
+  id: string;
+  /** Exit level reached */
+  exit: IngestOutcomeRequestExit;
+  /** Precise realized R (profit / 1R-risk) calculated by the EA */
+  realizedR: number;
+  /** Account-currency profit (optional, for logging) */
+  profit?: number | null;
+  /** Instrument symbol (optional) */
+  symbol?: string | null;
+  /** Trade close time (optional, ISO 8601) */
+  closedAt?: string | null;
+}
+
 export interface AnalysisError {
   error: string;
 }
@@ -174,5 +213,9 @@ export type UpdateHistoryOutcomeBody = {
 };
 
 export type UpdateHistoryOutcome200 = {
+  success: boolean;
+};
+
+export type IngestOutcome200 = {
   success: boolean;
 };
