@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from './AppContext';
 import { LevelLine } from './LevelLine';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,41 @@ import { useUser, SignInButton } from '@clerk/react';
 export function ResultsPanel() {
   const { currentPlan, setAnalysisMode, setCurrentPlan, setCurrentImage } = useApp();
   const { isSignedIn } = useUser();
+
+  // Recompute warnings live from current plan values (clears as user fixes levels in manual mode)
+  const activeWarnings = useMemo<string[]>(() => {
+    if (!currentPlan) return [];
+    const { entry, sl, tp1, tp2, tp3, priceMin, priceMax, direction } = currentPlan;
+    if (!entry || !sl || !priceMin || !priceMax) return currentPlan.levelWarnings ?? [];
+
+    const range = priceMax - priceMin;
+    const slDist = Math.abs(entry - sl);
+    const warnings: string[] = [];
+
+    if (range > 0) {
+      const lo = priceMin - 0.1 * range;
+      const hi = priceMax + 0.1 * range;
+      for (const [name, v] of [['sl', sl], ['tp1', tp1], ['tp2', tp2], ['tp3', tp3]] as [string, number][]) {
+        if (v < lo || v > hi) {
+          warnings.push(`${name} (${v}) is outside the visible range [${priceMin}–${priceMax}]`);
+        }
+      }
+      if (slDist > 0.4 * range) {
+        warnings.push(`SL distance (${slDist.toFixed(2)}) exceeds 40% of the visible range (${range.toFixed(2)})`);
+      }
+    }
+    if (entry > 0 && slDist / entry > 0.02) {
+      warnings.push(`SL is ${(slDist / entry * 100).toFixed(1)}% from entry (> 2%) — likely miscalibrated`);
+    }
+    if (entry > 0 && sl > 0) {
+      const isBuy = direction === 'BUY';
+      const ordered = isBuy
+        ? sl < entry && entry < tp1 && tp1 < tp2 && tp2 < tp3
+        : sl > entry && entry > tp1 && tp1 > tp2 && tp2 > tp3;
+      if (!ordered) warnings.push('Level order is inconsistent with the trade direction');
+    }
+    return warnings;
+  }, [currentPlan]);
 
   if (!currentPlan) return null;
 
@@ -142,6 +177,34 @@ export function ResultsPanel() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
+        {/* Level validation warnings */}
+        {activeWarnings.length > 0 && (
+          <div className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <h3 className="text-xs font-semibold text-rose-700 dark:text-rose-300 uppercase tracking-wider">Level Validation Warnings</h3>
+            </div>
+            <ul className="space-y-1 mb-3">
+              {activeWarnings.map((w, i) => (
+                <li key={i} className="text-xs text-rose-700 dark:text-rose-300 flex items-start gap-1.5">
+                  <span className="text-rose-400 shrink-0 mt-0.5">•</span>
+                  {w}
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-rose-600 dark:text-rose-400">
+              EA export is disabled until levels are corrected.{' '}
+              <button
+                onClick={() => setAnalysisMode('manual')}
+                className="font-semibold underline hover:no-underline"
+              >
+                Adjust levels manually
+              </button>{' '}
+              to clear warnings.
+            </p>
+          </div>
+        )}
 
         {/* Multi-timeframe context (shown when multiple charts were analysed) */}
         {currentPlan.multiTimeframeContext && (
@@ -351,15 +414,29 @@ export function ResultsPanel() {
             <Download className="w-4 h-4 mr-2" />
             Export Plan
           </Button>
-          <Button
-            variant="outline"
-            onClick={handleExportEA}
-            className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-            data-testid="button-export-ea"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export EA Plan
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="w-full">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportEA}
+                    disabled={activeWarnings.length > 0}
+                    className="w-full bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="button-export-ea"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export EA Plan
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {activeWarnings.length > 0 && (
+                <TooltipContent>
+                  <p>Fix level warnings before exporting to MT5</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <Button
           onClick={handleNewAnalysis}

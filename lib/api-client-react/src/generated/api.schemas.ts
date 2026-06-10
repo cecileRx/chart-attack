@@ -77,6 +77,8 @@ export interface ChartAnalysisResult {
   keyLevels: string;
   /** Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed) */
   multiTimeframeContext?: string;
+  /** Validation warnings for aberrant levels (out-of-range SL/TP, SL > 2% of price, wrong level order). EA export is blocked while warnings are present. */
+  levelWarnings?: string[];
 }
 
 export type HistoryEntryDirection =

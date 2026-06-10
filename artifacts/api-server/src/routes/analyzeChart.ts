@@ -47,7 +47,7 @@ Critical rules:
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
-- The stop loss distance from entry (|entry - sl|) MUST be at least 300 price units. If the natural invalidation zone is closer, move the SL further to reach the 300-unit minimum.
+- The SL and TPs MUST be consistent with the candles VISIBLE on the chart (intraday context, not macro levels). The entry↔SL distance must be realistic: typically 0.1%–1.5% of the entry price. Do NOT propose levels outside the visible price range shown on the chart.
 - Never use language like "guaranteed", "safe signal", or "winning trade".
 - If the chart is unclear or doesn't show price levels, still provide your best estimate and set confidence to "LOW".
 - FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
@@ -96,7 +96,7 @@ Critical rules:
 - For BUY: sl must be BELOW entry; tp1, tp2, tp3 must be ABOVE entry.
 - For SELL: sl must be ABOVE entry; tp1, tp2, tp3 must be BELOW entry.
 - tp1 = entry ± 1 × (entry - sl), tp2 = ± 2 ×, tp3 = ± 3 × (using the actual risk distance).
-- The stop loss distance from entry (|entry - sl|) MUST be at least 300 price units. If the natural invalidation zone is closer, move the SL further to reach the 300-unit minimum.
+- The SL and TPs MUST be consistent with the candles VISIBLE on the chart (intraday context, not macro levels). The entry↔SL distance must be realistic: typically 0.1%–1.5% of the entry price. Do NOT propose levels outside the visible price range of the PRIMARY chart.
 - Never use language like "guaranteed", "safe signal", or "winning trade".
 - If charts are unclear, still provide your best estimate and set confidence to "LOW".
 - FVG detection: A Bullish FVG exists when the high of a candle is lower than the low of the candle two positions later (a gap where no wicks overlap). A Bearish FVG is when the low of a candle is higher than the high of the candle two positions later. Report all visible unmitigated FVGs and up to 2 mitigated ones. If no FVGs are visible, return an empty array.
@@ -234,15 +234,50 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  // Enforce minimum SL distance of 300 price units
-  const MIN_SL_DISTANCE = 300;
-  if (typeof plan.entry === "number" && typeof plan.sl === "number") {
-    const slDist = Math.abs(plan.entry - plan.sl);
-    if (slDist < MIN_SL_DISTANCE) {
-      const isBuy = plan.direction === "BUY";
-      plan.sl = isBuy
-        ? plan.entry - MIN_SL_DISTANCE
-        : plan.entry + MIN_SL_DISTANCE;
+  // Level validation — flag aberrant plans without blocking display
+  {
+    const entry = typeof plan.entry === "number" ? plan.entry : 0;
+    const sl = typeof plan.sl === "number" ? plan.sl : 0;
+    const tp1 = typeof plan.tp1 === "number" ? plan.tp1 : 0;
+    const tp2 = typeof plan.tp2 === "number" ? plan.tp2 : 0;
+    const tp3 = typeof plan.tp3 === "number" ? plan.tp3 : 0;
+    const priceMin = typeof plan.priceMin === "number" ? plan.priceMin : 0;
+    const priceMax = typeof plan.priceMax === "number" ? plan.priceMax : 0;
+    const direction = typeof plan.direction === "string" ? plan.direction : "";
+    const range = priceMax - priceMin;
+    const slDist = Math.abs(entry - sl);
+    const warnings: string[] = [];
+
+    if (range > 0) {
+      const lo = priceMin - 0.1 * range;
+      const hi = priceMax + 0.1 * range;
+      for (const [name, v] of [["sl", sl], ["tp1", tp1], ["tp2", tp2], ["tp3", tp3]] as [string, number][]) {
+        if (v < lo || v > hi) {
+          warnings.push(`${name} (${v}) is outside the visible range [${priceMin}–${priceMax}]`);
+        }
+      }
+      if (slDist > 0.4 * range) {
+        warnings.push(`SL distance (${slDist.toFixed(2)}) exceeds 40% of the visible range (${range.toFixed(2)})`);
+      }
+    }
+
+    if (entry > 0 && slDist / entry > 0.02) {
+      warnings.push(`SL is ${(slDist / entry * 100).toFixed(1)}% from entry (> 2%) — likely miscalibrated`);
+    }
+
+    if (entry > 0 && sl > 0) {
+      const isBuy = direction === "BUY";
+      const ordered = isBuy
+        ? sl < entry && entry < tp1 && tp1 < tp2 && tp2 < tp3
+        : sl > entry && entry > tp1 && tp1 > tp2 && tp2 > tp3;
+      if (!ordered) {
+        warnings.push("Level order is inconsistent with the trade direction");
+      }
+    }
+
+    if (warnings.length > 0) {
+      plan.levelWarnings = warnings;
+      req.log.warn({ warnings, entry, sl, priceMin, priceMax }, "analyze-chart: level validation warnings");
     }
   }
 

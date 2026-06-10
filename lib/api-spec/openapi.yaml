@@ -366,6 +366,11 @@ components:
         multiTimeframeContext:
           type: string
           description: Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed)
+        levelWarnings:
+          type: array
+          items:
+            type: string
+          description: Validation warnings for aberrant levels (out-of-range SL/TP, SL > 2% of price, wrong level order). EA export is blocked while warnings are present.
       required:
         - context
         - timeframe

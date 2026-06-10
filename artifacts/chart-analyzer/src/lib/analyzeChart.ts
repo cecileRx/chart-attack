@@ -1,5 +1,6 @@
 export interface TradePlan {
   id?: string;           // DB id — set after the analysis is saved (user signed in)
+  levelWarnings?: string[];  // Server-side validation warnings (aberrant SL/TP). EA export blocked while non-empty.
   direction: 'BUY' | 'SELL';
   entry: number;
   sl: number;
@@ -61,6 +62,7 @@ export function buildPlanFromAIResponse(
   imageDataUrl: string,
   ai: {
     id?: string;
+    levelWarnings?: string[];
     context: string;
     timeframe: string;
     priceMin: number;
@@ -96,6 +98,7 @@ export function buildPlanFromAIResponse(
 
   return {
     id: ai.id,
+    levelWarnings: ai.levelWarnings,
     direction: ai.direction,
     entry: round(ai.entry, decimals),
     sl: round(ai.sl, decimals),

@@ -95,6 +95,12 @@ export const AnalyzeChartImageResponse = zod.object({
     .describe(
       "Summary of higher-timeframe bias and confluences found (only present when multiple charts were analysed)",
     ),
+  levelWarnings: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "Validation warnings for aberrant levels (out-of-range SL\/TP, SL > 2% of price, wrong level order). EA export is blocked while warnings are present.",
+    ),
 });
 
 /**
