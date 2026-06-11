@@ -251,10 +251,9 @@ router.post("/", async (req, res) => {
     if (range > 0) {
       const lo = priceMin - 0.1 * range;
       const hi = priceMax + 0.1 * range;
-      for (const [name, v] of [["sl", sl], ["tp1", tp1], ["tp2", tp2], ["tp3", tp3]] as [string, number][]) {
-        if (v < lo || v > hi) {
-          warnings.push(`${name} (${v}) is outside the visible range [${priceMin}–${priceMax}]`);
-        }
+      // Only check sl — TPs are derived at 1R/2R/3R and legitimately extend beyond the visible range
+      if (sl < lo || sl > hi) {
+        warnings.push(`sl (${sl}) is outside the visible range [${priceMin}–${priceMax}]`);
       }
       if (slDist > 0.4 * range) {
         warnings.push(`SL distance (${slDist.toFixed(2)}) exceeds 40% of the visible range (${range.toFixed(2)})`);
